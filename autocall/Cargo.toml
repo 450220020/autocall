@@ -1,0 +1,12 @@
+[package]
+name = "autocall"
+version = "0.1.0"
+edition = "2021"
+readme = "README.md"
+license-file = "LICENSE"
+description = "rust autocall macro,single scan load ioc aop "
+documentation = "https://docs.rs/autocall"
+repository = "https://github.com/450220020/autocall.git"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
