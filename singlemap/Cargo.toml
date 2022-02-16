@@ -3,7 +3,7 @@ name = "singlemap"
 version = "0.1.3"
 edition = "2021"
 readme = "README.md"
-license = "LICENSE"
+license-file = "LICENSE"
 description = "rust single map"
 documentation = "https://docs.rs/singlemap"
 
