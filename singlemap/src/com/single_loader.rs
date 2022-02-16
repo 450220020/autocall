@@ -38,6 +38,7 @@ macro_rules! sort_loader {
 }
 
 ///装载排序
+#[warn(unused_assignments)]
 pub fn get_assembly_sort() ->Result<Vec<LoaderType>,Vec<LoaderType>>{
     let loading_max_size = get_loader!().len() + 1;
     let mut loding_idx = 0;
