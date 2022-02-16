@@ -1,0 +1,59 @@
+WHITESPACE = _{" " | notes|NEWLINE}
+notes = {"//"+~(!"\n"~ANY)*~NEWLINE+}
+char = @{ ASCII_ALPHANUMERIC}
+attr_name_char = {(char+|"_")}
+attr_name_char_group = {attr_name_char+}
+
+
+use_char = @{ ASCII_ALPHANUMERIC|":"|","|"{"|"}"|"_"}
+use_char_group = {use_char*}
+use_content = {("use"~use_char_group~";")}
+
+extern_char =  @{ ASCII_ALPHANUMERIC|":"|","|"{"|"}"|"_"}
+extern_char_group = {extern_char+}
+extern_content = {("extern"~"crate"~extern_char_group+~";")}
+
+macro_char = @{ ASCII_ALPHANUMERIC|"("|")"|"!"|","|"_"|"-"|">"|"<"|"/"|"\""|"="|"." }
+macro_char_group = {macro_char*}
+macro_content = {("#"~"["~macro_char_group~"]")}
+
+let_static_char = @{ASCII_ALPHANUMERIC}
+let_static_char_group_name = {let_static_char*}
+let_static_char_group_value = {let_static_char*}
+let_static_content = {("static"~let_static_char_group_name~"="~let_static_char_group_value~";")}
+
+
+cast_content = {(use_content|extern_content)}
+cast_all_content = {cast_content*}
+
+type_char = @{ ASCII_ALPHANUMERIC|":"|"," |"+"|"'"|"_"|"("|")"}
+type_fnafor = {(type_fnbfor|type_fncfor|type_fndfor)}
+type_fnbfor = {"<"~type_char*~type_fnafor~type_char*~">"}
+type_fncfor = {type_char*~"<"~type_char*~">"~type_char*}
+type_fndfor = {type_char*~"<"~type_fnafor*~">"~type_char*}
+
+fun_char = { !"{"~!"}"~ANY}
+fun_char_group = {fun_char*}
+fun_for_char={!fun_for_ext~ANY}
+fun_for_char_group={fun_for_char*}
+fun_afor = {(fun_bfor|fun_cfor|fun_dfor)}
+fun_bfor = {"{"~fun_for_char_group~fun_afor~fun_for_char_group~"}"}
+fun_cfor = {fun_for_char_group~"{"~fun_for_char_group~"}"~fun_for_char_group}
+fun_dfor = {fun_for_char_group~"{"~fun_afor*~"}"~fun_for_char_group}
+fun_for_ext = {"{"|"}"|"#"}
+fun_name_char = @{!"{"~!"}"~!"#"~ASCII_ALPHANUMERIC|"_"}
+fun_name_group = {fun_name_char*}
+fun_brackets_char = {!"("~!")"~ANY}
+fun_brackets_group = {fun_brackets_char*}
+fun_head_end_char = @{!"{"~!"}"~ANY}
+fun_head_end_group ={fun_head_end_char*}
+
+other_content = {!scan_macro_fun_content~ANY}
+
+scan_macro_fun_content = {("#["~macro_char_group~"]")~"pub"~"fn"~fun_name_group~"("~fun_brackets_group~")"~fun_head_end_group~fun_afor+}
+
+file = {
+    SOI~
+   (other_content|scan_macro_fun_content)*
+    ~EOI
+}

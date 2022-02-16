@@ -1,0 +1,20 @@
+WHITESPACE = _{" " | NEWLINE|notes}
+notes = {"//"~ANY*}
+char = @{ ASCII_ALPHANUMERIC}
+macro_char = @{ ASCII_ALPHANUMERIC|"("|")"|"!"|","|"_"|"-"|">"|"<" }
+type_char = @{ ASCII_ALPHANUMERIC|":"|"," |"+"|"'"|"_"|"("|")"}
+name_char = @{char+|"_"}
+attr_name_char = {name_char+}
+type_fnafor = {(type_fnbfor|type_fncfor|type_fndfor)}
+type_fnbfor = {"<"~type_char*~type_fnafor~type_char*~">"}
+type_fncfor = {type_char*~"<"~type_char*~">"~type_char*}
+type_fndfor = {type_char*~"<"~type_fnafor*~">"~type_char*}
+attr_type_char = {type_fnafor+}
+attr_macro_content = {("#["~macro_char+~"]")}
+attr_content={"static"~attr_name_char+~":"~"Option"~attr_type_char~"="~"None"~";"}
+file = {
+    SOI~
+    (attr_macro_content)*~
+    (attr_content)*
+    ~EOI
+}
