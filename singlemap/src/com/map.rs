@@ -40,7 +40,28 @@ macro_rules! single_get_unwrap {
             .get($key)
             .unwrap()
             .downcast_ref::<$b>()
-            .unwrap().clone()
+            .unwrap()
+    };
+}
+
+#[macro_export]
+macro_rules! single_get_try {
+    ($key:expr,$b:ty,$fun:expr,$err:expr) => {
+        match get_map!().get($key){
+            Some(r)=>{
+               match r.downcast_ref::<Rbatis>(){
+                    Some(g)=>{
+                       $fun(g);
+                    }
+                    None=>{
+                        $err
+                    }
+                }
+            }
+            None=>{
+                $err
+            }
+        }
     };
 }
 
