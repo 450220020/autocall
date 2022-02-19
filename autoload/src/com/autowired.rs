@@ -20,7 +20,7 @@ pub fn impl_autowired(_attr: TokenStream, _input: TokenStream) -> TokenStream {
     for line in file.into_inner() {
         match line.as_rule() {
             Rule::attr_macro_content => {
-                let mut inner_rules = line.into_inner();
+                let inner_rules = line.into_inner();
                 println!("attr_macro_content-----:{:?}",inner_rules.as_str());
             }
             Rule::attr_content => {

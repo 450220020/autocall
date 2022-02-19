@@ -210,19 +210,9 @@ pub fn get_caller_path()->String{
         .unwrap_or("")
         .to_string();
         println!("call_path:{:?}",call_path);
-    if call_path.starts_with("src") {
-        let config_path_rs = env::current_dir();
-
-        match config_path_rs {
-            Ok(r) => {
-                if let Some(s) = r.to_str() {
-                    ast_path = path_sym_cast(s, &sym);
-                }
-            }
-            Err(e) => {
-                panic!("error:{:?}", e);
-            }
-        }
+        println!("call_path:{:?}",call_path.contains("src"));
+    if call_path.contains("src") {
+        ast_path = get_work_path();
     }else{
         let sym_src = sym.clone()+"src";
         let call_ast_path = path_sym_cast(&call_path, &sym);

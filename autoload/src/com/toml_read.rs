@@ -1,5 +1,5 @@
 use pest::Parser;
-use std::{env, fs, vec, collections::HashMap};
+use std::{ fs, collections::HashMap};
 
 
 #[derive(Parser)]
@@ -23,14 +23,14 @@ pub fn read_path_toml_lib_ver(path_str: &str)->HashMap<String,(String,bool)> {
                 Rule::toml_ver_more_path_content => {
                     let mut inner_rules = line.into_inner();
                     let lib_name = inner_rules.next().unwrap().as_str().to_string();
-                    let other_str = inner_rules.next().unwrap().as_str().to_string();
+                    let _ = inner_rules.next().unwrap().as_str().to_string();
                     let lib_ver = inner_rules.next().unwrap().as_str().to_string();
                     toml_lib_ver_map.insert(lib_name,(lib_ver,true));
                 }
                 Rule::toml_ver_more_content => {
                     let mut inner_rules = line.into_inner();
                     let lib_name = inner_rules.next().unwrap().as_str().to_string();
-                    let other_str = inner_rules.next().unwrap().as_str().to_string();
+                    let _ = inner_rules.next().unwrap().as_str().to_string();
                     let lib_ver = inner_rules.next().unwrap().as_str().to_string();
                     toml_lib_ver_map.insert(lib_name,(lib_ver,false));
                 }

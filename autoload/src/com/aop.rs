@@ -93,7 +93,7 @@ pub fn impl_aop(_attr: &TokenStream, _input: &TokenStream) -> TokenStream {
                     continue;
                 }
                 match rely_str.split_once(":") {
-                    Some((key, val)) => {
+                    Some((key, _)) => {
                         aop_set_param_str += &(key.trim().to_string() + ",");
                         let insert_str =
                             format!("aop_param_vec.push(Box::new({}.clone()));", key.trim());
