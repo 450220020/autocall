@@ -160,12 +160,16 @@ pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str,work_path:&str)
             let mut rely_str = String::new();
             for rely_name_type in fun_rely_vec{
                 let (key,val) = rely_name_type.split_once(":").unwrap();
-                rely_str=rely_str+"single_get_unwrap!(\""+&key+"\","+val+"),";
+                let mut val_str = val.trim().clone();
+                if val_str.starts_with("&"){
+                    val_str = val_str.split_at(1).1;
+                }
+                rely_str=rely_str+"single_get_unwrap!(\""+&key+"\","+val_str+"),";
             }
             rely_str = rely_str.substring(0,rely_str.len()-1).to_string();
-            run_tokens = format!("let {} = {}::{}({});single_push!({:?},Box::new({}));",fun_name,fun_crate_path,fun_name,rely_str,fun_name,fun_name);
+            run_tokens = format!("let {} = {}::{}({});single_push!({:?},{});",fun_name,fun_crate_path,fun_name,rely_str,fun_name,fun_name);
         }else{
-            run_tokens = format!("let {} = {}::{}();single_push!({:?},Box::new({}));",fun_name,fun_crate_path,fun_name,fun_name,fun_name);
+            run_tokens = format!("let {} = {}::{}();single_push!({:?},{});",fun_name,fun_crate_path,fun_name,fun_name,fun_name);
         }
         insert_code_line = format!("{}{}",insert_code_line,run_tokens);
         let rely_tokens = proc_macro2::TokenStream::from_str(&run_tokens).unwrap();

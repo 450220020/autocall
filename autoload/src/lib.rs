@@ -99,7 +99,7 @@ pub fn component_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
     let  ast_path = component_scan::get_caller_path();
     let work_path = component_scan::get_work_path();
     println!("ast_path:{:?}",ast_path);
-    println!("work_path:{:?}",work_path)
+    println!("work_path:{:?}",work_path);
     component_scan::impl_component_scan(&_attr,&_input,&ast_path,&work_path)
 }
 
