@@ -99,9 +99,8 @@ pub fn impl_component_scan(_attr: &TokenStream, _input: &TokenStream,celler_path
   
     let result_code = format!("pub fn {}({}){}{{{}{}}}",celler_fun.fun_name,celler_fun.fun_param,celler_fun.fun_head_end_group,fun_for_content,loading_code_str);
     println!("result_code:{}",result_code);
-    //let result_token_stream = proc_macro2::TokenStream::from_str(&result_code).unwrap();
-    
-    return TokenStream::from(quote!(result_code));
+    let result_token_stream = proc_macro2::TokenStream::from_str(&result_code).unwrap();
+    return TokenStream::from(result_token_stream);
 }
 
 

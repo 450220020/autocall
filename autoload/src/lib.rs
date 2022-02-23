@@ -100,11 +100,9 @@ pub fn component_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
     let work_path = component_scan::get_work_path();
     println!("ast_path:{:?}",ast_path);
     println!("work_path:{:?}",work_path);
-    if ast_path.trim()==""{
+    if ast_path.is_empty(){
         return _input;
     }
-    //return _input;
-    //panic!("ast_path:{:?}","hhhh");
     component_scan::impl_component_scan(&_attr,&_input,&ast_path)
 }
 
