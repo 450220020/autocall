@@ -15,7 +15,7 @@
 
 
 //扫描 atesta::ioca路径下 scan_macro="bean" 使用bean宏标记的函数，扫描的内容会根据 调用宏component_scan的crate位置作为基础坐标，不用担心发布的crate扫描路径不正确的情况
-#[component_scan(scan_path="atesta::ioca",scan_suffix=".rs",scan_macro="bean")]
+#[component_scan(scan_path="atesta::ioca",scan_macro="bean")]
 pub fn lading(){
     println!("crate_ioc_path!() test");
     let a = single_get_unwrap!("get_bec",String);
@@ -31,7 +31,7 @@ pub fn get_bec()->String{
 
 //标记切入的bean
 #[aop(first_bean="set_aopa",last_bean="set_aopb")]
-pub fn set_aohhhhh(a:String,b:String)->String{
+pub fn set_aohhhhh(a:&String,b:&String)->String{
     println!("set_aohhhhh:{:?}",a);
     return String::from("888899");
 }
