@@ -1,11 +1,10 @@
 use core::panic;
 use std::{collections::HashMap, env, fs, path::Path, str::FromStr};
-
 use pest::Parser;
-use proc_macro::TokenStream;
-use substring::Substring;
+pub use proc_macro::TokenStream;
 use crate::com::toml_read;
 use crate::com::component_celler_read;
+use quote::quote;
 
 
 #[derive(Parser)]
@@ -18,14 +17,13 @@ struct ComponentScanVO {
     scan_suffix: Option<String>,
     scan_macro: Option<String>,
     exculde_path: Option<String>,
-    auto_assembling: Option<String>,
     lib_path: Option<String>,
 }
 
-const symbol_str: &str = "/";
+const SYMBOL_STR: &str = "/";
 
 fn get_path_symbol() -> String {
-    String::from(symbol_str)
+    String::from(SYMBOL_STR)
 }
 
 
@@ -33,8 +31,7 @@ fn get_path_symbol() -> String {
 
 
 
-pub fn impl_component_scan(_attr: &TokenStream, _input: &TokenStream,celler_path:&str,work_path:&str) -> TokenStream {
-  
+pub fn impl_component_scan(_attr: &TokenStream, _input: &TokenStream,celler_path:&str) -> TokenStream {
     println!("_input:{:?}",_input.to_string());
     let attr_str = _attr.to_string();
     let mut config = ComponentScanVO {
@@ -42,11 +39,10 @@ pub fn impl_component_scan(_attr: &TokenStream, _input: &TokenStream,celler_path
         scan_suffix: Some(String::from(".rs")),
         scan_macro: None,
         exculde_path: Some(String::from("")),
-        auto_assembling: Some(String::from("false")),
         lib_path: None,
     };
     let param = attr_split_to_map(&attr_str);
-    println!("param:{:?}",param);
+    
     if let Some(r) = param.get("scan_path") {
         config.scan_path = Some(r.clone().trim().to_string());
     }
@@ -85,7 +81,7 @@ pub fn impl_component_scan(_attr: &TokenStream, _input: &TokenStream,celler_path
     println!("file_path_vec:{:?}",file_path_vec);
     let  fun_vec = read_macro_file_path(&file_path_vec,&scan_macro_vec);
     println!("fun_vec:{:?}",fun_vec);
-    let loading_code_str = fun_model_to_code(fun_vec,celler_path,work_path);
+    let loading_code_str = fun_model_to_code(fun_vec,celler_path);
 
     let celler_fun_code_op = component_celler_read::read_this_parset(_input.clone().to_string());
     
@@ -101,16 +97,16 @@ pub fn impl_component_scan(_attr: &TokenStream, _input: &TokenStream,celler_path
     
     fun_for_content  = for_substring!(&fun_for_content,fun_for_content.find("{").unwrap()+1, fun_for_content.rfind("}").unwrap()).to_string();
   
-    let result_code = format!("pub fn {}({}){}{{{}{}}}",celler_fun.fun_name,celler_fun.fun_param,celler_fun.fun_head_end_group,loading_code_str,fun_for_content);
-    println!("result_code:{:?}",result_code);
-    let result_token_stream = proc_macro2::TokenStream::from_str(&result_code).unwrap();
-    return TokenStream::from(result_token_stream);
+    let result_code = format!("pub fn {}({}){}{{{}{}}}",celler_fun.fun_name,celler_fun.fun_param,celler_fun.fun_head_end_group,fun_for_content,loading_code_str);
+    println!("result_code:{}",result_code);
+    //let result_token_stream = proc_macro2::TokenStream::from_str(&result_code).unwrap();
+    
+    return TokenStream::from(quote!(result_code));
 }
 
 
 ///识别的函数集转换为执行代码
-pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str,work_path:&str)->String{
-     /// 计算依赖
+pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str)->String{
      for model in fun_vec{
         let attr_map = param_attr_split_to_map(&model.fun_param);
         println!("attr_map:{:?}-{:?}",attr_map,&model.fun_param);
@@ -121,7 +117,7 @@ pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str,work_path:&str)
                 continue;
             }
             match rely_str.split_once(":") {
-                Some((key,val))=>{
+                Some((key,_))=>{
                     rely_vec.push(key.to_string());
                     rely_name_type.push(rely_str.to_string());
                     
@@ -131,15 +127,13 @@ pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str,work_path:&str)
                 }
             }
         }
-        let crate_path_str = path_lib_link(&model.file_path,&celler_path,&work_path);
+        let crate_path_str = path_lib_link(&model.file_path,&celler_path,&celler_path);
         //导入所有依赖
-        push_loader!(model.fun_name.clone(),(false,model.fun_name.clone(),rely_vec,crate_path_str[0].clone(),rely_name_type));
+        push_loader!(model.fun_name.clone(),(false,model.fun_name.clone(),rely_vec,crate_path_str[0].clone(),rely_name_type,model.fun_return));
     }
-    println!("aaaaa!");
     let sort_result = sort_loader!();
-
     println!("sort_result:{:?}",sort_result);
-    let mut rely_sort = Vec::new();
+    let rely_sort;
     match sort_result{
         Ok(r)=>{
             rely_sort = r;
@@ -154,7 +148,8 @@ pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str,work_path:&str)
         let fun_name = rely.1;
         let fun_rely_vec = rely.4;
         let fun_crate_path = rely.3;
-        let mut run_tokens = String::new();
+        let fun_return = rely.5;
+        let run_tokens ;
         if fun_rely_vec.len()>0{
             println!("fun_rely_vec:{:?}",fun_rely_vec);
             let mut rely_str = String::new();
@@ -166,10 +161,21 @@ pub fn  fun_model_to_code(fun_vec:Vec<FunModel>,celler_path:&str,work_path:&str)
                 }
                 rely_str=rely_str+"single_get_unwrap!(\""+&key+"\","+val_str+"),";
             }
-            rely_str = rely_str.substring(0,rely_str.len()-1).to_string();
-            run_tokens = format!("let {} = {}::{}({});single_push!({:?},{});",fun_name,fun_crate_path,fun_name,rely_str,fun_name,fun_name);
+            rely_str = for_substring!(rely_str,0,rely_str.len()-1).to_string();
+            if fun_return.is_empty(){
+                run_tokens = format!("{}::{}({});",fun_crate_path,fun_name,rely_str);
+            }else{
+                run_tokens = format!("let {} = {}::{}({});single_push!({:?},{});",fun_name,fun_crate_path,fun_name,rely_str,fun_name,fun_name);
+            }
+            
         }else{
-            run_tokens = format!("let {} = {}::{}();single_push!({:?},{});",fun_name,fun_crate_path,fun_name,fun_name,fun_name);
+            //run_tokens = format!("let {} = {}::{}();single_push!({:?},{});",fun_name,fun_crate_path,fun_name,fun_name,fun_name);
+            //run_tokens = format!("let {} = {}::{}();",fun_name,fun_crate_path,fun_name);
+            if fun_return.is_empty(){
+                run_tokens = format!("{}::{}();",fun_crate_path,fun_name);
+            }else{
+                run_tokens = format!("let {} = {}::{}();single_push!({:?},{});",fun_name,fun_crate_path,fun_name,fun_name,fun_name);
+            }
         }
         insert_code_line = format!("{}{}",insert_code_line,run_tokens);
         let rely_tokens = proc_macro2::TokenStream::from_str(&run_tokens).unwrap();
@@ -187,7 +193,7 @@ pub  fn get_work_path()->String{
     match config_path_rs {
         Ok(r) => {
             if let Some(s) = r.to_str() {
-                config_path = path_sym_cast(s, &sym);;
+                config_path = path_sym_cast(s, &sym);
             }
         }
         Err(e) => {
@@ -202,21 +208,35 @@ pub  fn get_work_path()->String{
 pub fn get_caller_path()->String{
     let sym = get_path_symbol();
     let call_site_span = proc_macro::Span::call_site();
-    let mut ast_path = String::new();
-    let call_path = call_site_span
+    let ast_path ;
+    let sym_src = sym.clone()+"src";
+    
+    let call_path = path_sym_cast(call_site_span
         .source_file()
         .path()
         .to_str()
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or(""),&sym);
         println!("call_path:{:?}",call_path);
         println!("call_path:{:?}",call_path.contains("src"));
     if call_path.contains("src") {
-        ast_path = get_work_path();
+        let work_path = get_work_path();
+        if let None = work_path.rfind(&sym){
+            return String::new();
+        }
+        if let None = call_path.find(&sym_src){
+            return String::new();
+        }
+        let work_dir_name = work_path.split_at(work_path.rfind(&sym).unwrap()).1;
+        let call_dir_name = call_path.split_at(call_path.find(&sym_src).unwrap()).0;
+        if !work_dir_name.eq(call_dir_name){
+            ast_path = work_path+&sym + call_dir_name;
+        }else{
+            ast_path = get_work_path();
+        }
     }else{
-        let sym_src = sym.clone()+"src";
+        
         let call_ast_path = path_sym_cast(&call_path, &sym);
-        ast_path = call_ast_path.substring(0,call_ast_path.rfind(&sym_src).unwrap_or(call_ast_path.len())).to_string();
+        ast_path =  for_substring!(call_ast_path,0,call_ast_path.rfind(&sym_src).unwrap_or(call_ast_path.len())).to_string();
     }
     return ast_path;
 }
@@ -227,10 +247,21 @@ pub struct FunModel{
     macro_name:String,
     fun_name:String,
     fun_param:String,
-    file_path:String
+    file_path:String,
+    fun_return:String,
 }
 
+
+// #[derive(Debug,Clone)]
+// pub struct FunContent{
+//     pub fun_name:String,
+//     pub fun_param:String,
+//     pub fun_head_end_group:String,
+//     pub fun_for_content:String,
+// }
+
 //读取文件并识别Fun
+#[allow(dead_code)]
 pub fn read_macro_file_path(file_path_vec: &Vec<String>, scan_macro_vec: &Vec<&str>)->Vec<FunModel> {
     println!("扫面文件:{:?}", file_path_vec);
     println!("扫描注解:{:?}", scan_macro_vec);
@@ -265,12 +296,16 @@ pub fn read_macro_file_path(file_path_vec: &Vec<String>, scan_macro_vec: &Vec<&s
                     let fun_brackets_group = inner_rules.next().unwrap().as_str().to_string();
                     println!("fun_brackets_group:{:?}",fun_brackets_group);
 
+                    let fun_return_group = inner_rules.next().unwrap().as_str().to_string();
+
+            
                     if scan_macro_vec.contains(&macro_name.as_str()) {
                         let fun_model = FunModel{
                             macro_name:macro_name,
                             fun_name:fun_name_group,
                             fun_param:fun_brackets_group,
                             file_path:file_path_str.clone(),
+                            fun_return:fun_return_group,
                         };
                         fun_model_vec.push(fun_model.clone());
                         println!("fun_model:{:?}", fun_model);
@@ -291,12 +326,11 @@ pub fn read_macro_file_path(file_path_vec: &Vec<String>, scan_macro_vec: &Vec<&s
 fn get_effective_file(config_vo: ComponentScanVO) -> Vec<String> {
     let config = config_vo;
     //最终需要扫描的所有目录
-    let mut all_dir_path_ls = Vec::new();
     println!("config:{:?}",config);
     let path_list = config.scan_path.unwrap();
     let lib_path = config.lib_path.unwrap();
     let exculde_path = config.exculde_path.unwrap();
-    all_dir_path_ls = get_effective_dir(&path_list, &exculde_path, &lib_path);
+    let all_dir_path_ls = get_effective_dir(&path_list, &exculde_path, &lib_path);
 
     println!("all_dir_path_ls:{:?}",all_dir_path_ls);
     //需要扫描的文件后缀
@@ -401,7 +435,7 @@ pub fn read_dir_file(path_vec: Vec<String>, suffix_vec: Vec<&str>) -> Vec<String
                                 if suffix_exists_vec.contains(suffix_str) {
                                     continue;
                                 }
-                                if let Some(val) = name_path.strip_suffix(suffix_str) {
+                                if let Some(_) = name_path.strip_suffix(suffix_str) {
                                     all_path_ls.push(path_sym_cast(name_path, &get_path_symbol()));
                                     suffix_exists_vec.push(suffix_str);
                                 }
@@ -428,7 +462,7 @@ pub fn read_path_all_dir(
     if exclude_sp.contains(&path_str) {
         return;
     }
-    if (current_level > max_level + 1) {
+    if current_level > max_level + 1 {
         return;
     }
     println!("通过目录:{:?}", path_str);
@@ -440,9 +474,9 @@ pub fn read_path_all_dir(
             for dir_entity_rs in r {
                 if let Ok(dir_entity) = dir_entity_rs {
                     let dir_entity_path = dir_entity.path();
-                    if (dir_entity_path.is_dir()) {
+                    if dir_entity_path.is_dir() {
                         read_path_all_dir(
-                            dir_entity_path.to_str().unwrap(),
+                            dir_entity_path.to_str().unwrap_or_else(||{panic!("dir_entity_path is null");}),
                             exclude_path_str,
                             all_path_ls,
                             current_level + 1,
@@ -464,15 +498,15 @@ fn path_sym_cast(path_str: &str, sym: &str) -> String {
 /// set_lib_path = 调用宏实际包地址
 pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
     let sym = get_path_symbol();
-    let up_sym = ("..".to_string() + &sym);
+    let up_sym = "..".to_string() + &sym;
+    //调用包地址
     let lib_config_path = path_sym_cast(set_lib_path, &sym);
-
-    //C:\\Users\\45022\\.cargo\\registry\\src\\github.com-1ecc6299db9ec823\\extends-rs-0.1.6
-    //读取工作目录依赖文件信息 找到对应版本依赖文件扫描读取
-
+    //读取调用宏的包依赖
     let toml_path = lib_config_path.clone() + &sym + "Cargo.toml";
     let mut toml_ver_map = toml_read::read_path_toml_lib_ver(&toml_path);
-    let current_lib_name = lib_config_path.substring(lib_config_path.rfind(&sym).unwrap_or(0)+1, lib_config_path.len()).to_string();
+    //调用宏的包
+    let current_lib_name =  for_substring!(&lib_config_path,lib_config_path.rfind(&sym).unwrap_or(0)+1, lib_config_path.len()).to_string();
+    println!("current_lib_name:{:?}",current_lib_name);
     let current_lib_path = "../".to_string()+&current_lib_name;
     toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(),true));
     println!("toml_ver_map:{:?}",toml_ver_map);
@@ -484,13 +518,13 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
             continue;
         }
         println!("path_str:{:?}",path_str);
-        let mut frist_mod_path = String::new();
-        let mut the_path_str = path_str.replace("::", &sym).replace(&up_sym, "");
-        let last_mod_path = the_path_str
-            .substring(the_path_str.find(&sym).unwrap_or(0) + 1, the_path_str.len())
+        let mut frist_mod_path;
+        let  the_path_str = path_str.replace("::", &sym).replace(&up_sym, "");
+        let last_mod_path = for_substring!( the_path_str,the_path_str.find(&sym).unwrap_or(the_path_str.len()-1)+1 , the_path_str.len())
             .to_string();
+            println!("last_mod_path:{:?}",last_mod_path);
             println!("the_path_str:{:?}",the_path_str);
-        let mut lib_name = the_path_str.clone().split(&sym).collect::<Vec<&str>>()[0].to_string();
+        let lib_name = the_path_str.clone().split(&sym).collect::<Vec<&str>>()[0].to_string();
         println!("lib_name:{:?}",lib_name);
         //是否引用依赖
         let lib_attr_opt = toml_ver_map.get(&lib_name);
@@ -499,12 +533,13 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
             Some(val) => {
                 println!("val:{:?}",val);
                 if val.1 {
+                    println!("lib_config_path:{:?}",lib_config_path);
                     frist_mod_path = get_jump_folder(
                         &lib_config_path,
                         &sym,
                         &val.0.split("../").collect::<Vec<&str>>().len() - 1,
                     ) + &sym
-                        + &lib_name;
+                        + &val.0.replace("../", "");
                 } else {
                     frist_mod_path = get_jump_folder(&lib_config_path, &sym, 1)
                         + &lib_name.replace("_", "-")
@@ -516,7 +551,7 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
                 continue;
             }
         }
-
+        println!("frist_mod_path:{:?}",frist_mod_path);
         if Path::new(&(frist_mod_path.clone() + &sym + "src")).exists() {
             frist_mod_path += &(sym.clone() + "src");
         }
@@ -533,6 +568,7 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
 ///set_lib_path = 实际包地址 env!("CARGO_MANIFEST_DIR")
 /// set_lib_path = 调用宏实际包地址
 /// 将实际文件路径转换为包路径
+#[warn(unused_must_use)]
 pub fn path_lib_link(path_list: &str, set_lib_path: &str,work_lib_path:&str) -> Vec<String> {
     let sym = get_path_symbol();
     let lib_config_path = path_sym_cast(set_lib_path, &sym);
@@ -541,7 +577,7 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str,work_lib_path:&str) -> 
 
     let toml_path = lib_config_path.clone() + &sym + "Cargo.toml";
     let mut toml_ver_map = toml_read::read_path_toml_lib_ver(&toml_path);
-    let current_lib_name = lib_config_path.substring(lib_config_path.rfind(&sym).unwrap_or(0)+1, lib_config_path.len()).to_string();
+    let current_lib_name = for_substring!(lib_config_path,lib_config_path.rfind(&sym).unwrap_or(0)+1, lib_config_path.len()).to_string();
     let current_lib_path = "../".to_string()+&current_lib_name;
     toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(),true));
     println!("toml_ver_map:{:?}",toml_ver_map);
@@ -557,7 +593,7 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str,work_lib_path:&str) -> 
         //如果有后缀 去掉
         if let Some(r)=path_str.rfind("."){
             if path_str.rfind(&sym).unwrap()<r{
-                the_path_str  = path_str.substring(0, path_str.rfind(".").unwrap()).to_string();
+                the_path_str  = for_substring!(path_str,0, path_str.rfind(".").unwrap()).to_string();
             }
         }
         
@@ -568,31 +604,42 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str,work_lib_path:&str) -> 
         println!("jump_dir_vec:{:?}",jump_dir_vec);
         let mut crate_path_str = String::new();
         let mut jump_record_str = the_path_str.clone();
-        let max_idx = (jump_dir_vec.len()-1);
+        let max_idx = jump_dir_vec.len()-1;
         for x in 0..max_idx{
             let jump = jump_dir_vec[max_idx-x].clone();
             crate_path_str= jump.clone()+"::"+&crate_path_str;
             println!("crate_path_str+=:{:?}",crate_path_str);
             jump_record_str  = get_jump_folder(&jump_record_str, &sym, 1);
             println!("jump_record_str+=:{:?}",jump_record_str);
-           if(Path::new( &(jump_record_str.clone()+&sym+"Cargo.toml")).exists()){
-               let crate_dir_name = jump_record_str.substring(jump_record_str.rfind(&sym).unwrap()+1, jump_record_str.len()).to_string();
+           if Path::new( &(jump_record_str.clone()+&sym+"Cargo.toml")).exists(){
+               let crate_dir_name = for_substring!(jump_record_str,jump_record_str.rfind(&sym).unwrap()+1, jump_record_str.len()).to_string();
                crate_path_str= crate_dir_name+"::"+&crate_path_str;
                 break;
            }
         }
-        println!("crate_path_str:{:?}",crate_path_str);
-        crate_path_str = crate_path_str.substring(0,crate_path_str.rfind("::").unwrap()).replace("src::", "");
+        crate_path_str = for_substring!(crate_path_str,0,crate_path_str.rfind("::").unwrap()).replace("src::", "");
         
-        let crate_name = crate_path_str.substring(0, crate_path_str.find("::").unwrap());
+        println!("crate_path_str:{:?}",&crate_path_str);
+        
+        let crate_name = for_substring!(crate_path_str,0, crate_path_str.find("::").unwrap()).to_string();
         if crate_name.contains("-"){
-            crate_path_str.replace(crate_name,  crate_name.substring(0, crate_name.find("-").unwrap()));
+            crate_path_str = crate_path_str.replace(&crate_name,  for_substring!(crate_name,0,crate_name.find("-").unwrap()));
         }
-        let work_dir_name = work_lib_path.substring(work_lib_path.rfind(&sym).unwrap(), work_lib_path.len()).replace(&sym,"");
+        //执行目录文件下省略引用
+        let crate_name_main = crate_name.clone()+"::main";
+        let crate_name_lib = crate_name.clone()+"::lib";
+        if crate_path_str.starts_with(&crate_name_main){
+            crate_path_str = crate_path_str.replace(&crate_name_main,&crate_name.to_string()).to_string(); 
+        }
+        if crate_path_str.starts_with(&crate_name_lib){
+            crate_path_str = crate_path_str.replace(&crate_name_lib,&crate_name.to_string()).to_string(); 
+        }
+        let work_dir_name = for_substring!(work_lib_path,work_lib_path.rfind(&sym).unwrap(), work_lib_path.len()).replace(&sym,"");
         println!("work_dir_name:{:?}",work_dir_name);
         println!("crate_name:{:?}",crate_name);
-        if(work_dir_name.eq(crate_name)){
-            crate_path_str  = crate_path_str.replace(crate_name, "crate");
+        //包与工作目录一致修改为crate
+        if work_dir_name.eq(&crate_name){
+            crate_path_str  = crate_path_str.replace(&crate_name, "crate");
         }
         println!("crate_path_str rest:{:?}",crate_path_str);
         path_parent_list.push(crate_path_str);
@@ -608,18 +655,18 @@ pub fn get_jump_folder(path_str_the: &str, lev_str: &str, set_lev_size: usize) -
         path_str_result = path_str_the.replace("\\", lev_str).replace("/", lev_str);
     }
     let mut up_lev_size = set_lev_size;
-    if (up_lev_size > 0) {
+    if up_lev_size > 0 {
         let up_size_max = path_str_result.split(lev_str).collect::<Vec<&str>>().len() - 1;
         if up_lev_size > up_size_max {
             up_lev_size = up_size_max;
         }
-        for x in 0..up_lev_size {
-            path_str_result = path_str_result
-                .substring(
+        for _ in 0..up_lev_size {
+            path_str_result = for_substring!(path_str_result
+                ,
                     0,
                     path_str_result
                         .rfind(lev_str)
-                        .unwrap_or(path_str_result.len()),
+                        .unwrap_or(path_str_result.len())
                 )
                 .to_string();
         }

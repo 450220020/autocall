@@ -6,9 +6,9 @@
 extern crate singlemap;
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate substring;
-#[macro_use]
+extern crate once_cell;
 extern crate pest;
+extern crate quote;
 #[macro_use]
 extern crate pest_derive;
 use proc_macro::TokenStream;
@@ -100,7 +100,12 @@ pub fn component_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
     let work_path = component_scan::get_work_path();
     println!("ast_path:{:?}",ast_path);
     println!("work_path:{:?}",work_path);
-    component_scan::impl_component_scan(&_attr,&_input,&ast_path,&work_path)
+    if ast_path.trim()==""{
+        return _input;
+    }
+    //return _input;
+    //panic!("ast_path:{:?}","hhhh");
+    component_scan::impl_component_scan(&_attr,&_input,&ast_path)
 }
 
 

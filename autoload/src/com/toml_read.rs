@@ -10,6 +10,7 @@ pub struct TomlLibVersionInput;
 pub fn read_path_toml_lib_ver(path_str: &str)->HashMap<String,(String,bool)> {
     let mut toml_lib_ver_map = HashMap::new();
     let mut unparsed_file = String::new();
+    println!("toml_path_str:{:?}",path_str);
     if let Ok(r) = fs::read_to_string(&path_str) {
         unparsed_file = r.clone();
     }

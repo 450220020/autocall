@@ -33,12 +33,13 @@ type_fncfor = {type_char*~"<"~type_char*~">"~type_char*}
 type_fndfor = {type_char*~"<"~type_fnafor*~">"~type_char*}
 
 fun_char = { !"{"~!"}"~ANY}
+fun_left_char = {"{"}
+fun_right_char = {"}"{0,1}}
 fun_char_group = {fun_char*}
 fun_afor = {(fun_bfor|fun_cfor|fun_dfor)}
-fun_bfor = {"{"~fun_char_group~fun_afor~fun_char_group~"}"}
-fun_cfor = {fun_char_group~"{"~fun_char_group~"}"~fun_char_group}
-fun_dfor = {fun_char_group~"{"~fun_afor*~"}"~fun_char_group}
-fun_efor = {"{"*~fun_char_group~fun_afor~fun_char_group~"}"*}
+fun_bfor = {fun_left_char~fun_char_group~fun_afor~fun_char_group~fun_right_char}
+fun_cfor = {fun_char_group~fun_left_char~fun_char_group~fun_right_char~fun_char_group}
+fun_dfor = {fun_char_group~fun_left_char~fun_afor*~fun_right_char~fun_char_group}
 
 fun_name_char = @{!"{"~!"}"~ASCII_ALPHANUMERIC|"_"}
 fun_name_group = {fun_name_char*}

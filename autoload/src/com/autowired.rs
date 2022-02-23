@@ -1,7 +1,6 @@
 use pest::Parser;
 use proc_macro::TokenStream;
 use quote::quote;
-use substring::Substring;
 
 #[derive(Parser)]
 #[grammar = "./pestf/autowired_input.pest"]
@@ -29,7 +28,7 @@ pub fn impl_autowired(_attr: TokenStream, _input: TokenStream) -> TokenStream {
                 let attr_type_char= inner_rules.next().unwrap().as_str();
                 macro_name = attr_name_char.trim().clone().to_string();
                 type_name = attr_type_char.clone().to_string().trim().to_string();
-                type_name = type_name.substring(1, type_name.len()-1).to_string();
+                type_name = for_substring!(type_name,1, type_name.len()-1).to_string();
                 println!("attr_name_char-----:{:?}",attr_name_char);
                 println!("attr_type_char-----:{:?}",attr_type_char);
             }

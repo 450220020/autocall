@@ -1,6 +1,6 @@
 [package]
 name = "autoload"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2021"
 readme = "README.md"
 license-file = "LICENSE"
@@ -14,9 +14,10 @@ proc-macro=true
 syn = { version = "1.0.84", features=["full", "fold", "printing"] }
 quote ="1.0.14"
 proc-macro2 = "1.0.36"
-substring="1.4.5"
-pest = "2.1.3"
-pest_derive = "2.1.0"
+pest = "2.0"
+pest_derive = "2.0"
 log="0.4.14"
 parking_lot="0.12.0"
 singlemap="0.1.4"
+#singlemap={path="../singlemap"}
+once_cell="1.9.0"

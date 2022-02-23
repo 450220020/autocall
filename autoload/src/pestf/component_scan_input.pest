@@ -33,13 +33,15 @@ type_fncfor = {type_char*~"<"~type_char*~">"~type_char*}
 type_fndfor = {type_char*~"<"~type_fnafor*~">"~type_char*}
 
 fun_char = { !"{"~!"}"~ANY}
+fun_left_char = {"{"}
+fun_right_char = {"}"{0,1}}
 fun_char_group = {fun_char*}
 fun_for_char={!fun_for_ext~ANY}
 fun_for_char_group={fun_for_char*}
 fun_afor = {(fun_bfor|fun_cfor|fun_dfor)}
-fun_bfor = {"{"~fun_for_char_group~fun_afor~fun_for_char_group~"}"}
-fun_cfor = {fun_for_char_group~"{"~fun_for_char_group~"}"~fun_for_char_group}
-fun_dfor = {fun_for_char_group~"{"~fun_afor*~"}"~fun_for_char_group}
+fun_bfor = {fun_left_char~fun_for_char_group~fun_afor~fun_for_char_group~fun_right_char}
+fun_cfor = {fun_for_char_group~fun_left_char~fun_for_char_group~fun_right_char~fun_for_char_group}
+fun_dfor = {fun_for_char_group~fun_left_char~fun_afor*~fun_right_char~fun_for_char_group}
 fun_for_ext = {"{"|"}"|"#"}
 fun_name_char = @{!"{"~!"}"~!"#"~ASCII_ALPHANUMERIC|"_"}
 fun_name_group = {fun_name_char*}
@@ -47,10 +49,12 @@ fun_brackets_char = {!"("~!")"~ANY}
 fun_brackets_group = {fun_brackets_char*}
 fun_head_end_char = @{!"{"~!"}"~ANY}
 fun_head_end_group ={fun_head_end_char*}
+fun_return_char=@{!"where"~!"{"~!"}"~ANY}
+fun_return_group={("->"~fun_return_char*){0,1}}
 
 other_content = {!scan_macro_fun_content~ANY}
 
-scan_macro_fun_content = {("#["~macro_char_group~"]")~"pub"~"fn"~fun_name_group~"("~fun_brackets_group~")"~fun_head_end_group~fun_afor+}
+scan_macro_fun_content = {("#["~macro_char_group~"]")~"pub"~"fn"~fun_name_group~"("~fun_brackets_group~")"~fun_return_group~fun_head_end_group~fun_afor+}
 
 file = {
     SOI~
