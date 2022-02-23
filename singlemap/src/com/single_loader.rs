@@ -2,7 +2,7 @@ use dashmap::DashMap;
 use once_cell::sync::OnceCell;
 use std::{collections::HashMap};
 
-type LoaderType = (bool, String, Vec<String>, String,Vec<String>);
+type LoaderType = (bool, String, Vec<String>, String,Vec<String>,String);
 
 #[warn(dead_code)]
 static LOADER: OnceCell<DashMap<String, LoaderType>> = OnceCell::new();
@@ -38,12 +38,11 @@ macro_rules! sort_loader {
 }
 
 ///装载排序
-#[warn(unused_assignments)]
 pub fn get_assembly_sort() ->Result<Vec<LoaderType>,Vec<LoaderType>>{
     let loading_max_size = get_loader!().len() + 1;
     let mut loding_idx = 0;
     let mut ruslt_loading_vec = vec!();
-    let mut is_loding_true = HashMap::new();
+    let mut is_loding_true ;
     let mut is_loding_false = vec!();
     loop {
         loding_idx += 1;

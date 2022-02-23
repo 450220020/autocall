@@ -8,10 +8,11 @@ use std::any::{ self};
 /// 大致内容是通过 修改指针的表示类型，从而得到需要类型的引用，从而达到转换类型的目的  所以重新命名为指针盒子
 /// 警告！本人对于rust的认知不知道是否存在 大于u8大小的指针
 /// 
+#[derive(Debug,Clone)] 
 pub struct  PointerBox {
-    type_name:String,
-    type_id: any::TypeId,
-    value_box: Box<u8>,
+    pub type_name:String,
+    pub type_id: any::TypeId,
+    pub value_box: Box<u8>,
 }
 
 
