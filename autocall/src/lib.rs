@@ -1,8 +1,15 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+#[macro_use]
+extern crate autoload;
+#[macro_use]
+extern crate singlemap;
+#[macro_use]
+extern crate log;
+extern crate log4rs;
+extern crate serde_json;
+extern crate rbatis;
+extern crate actix_web;
+pub mod auto_config;
+pub mod run;
+
+
+
