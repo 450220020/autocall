@@ -16,5 +16,6 @@ pub fn get_lib_crate_path()->String{
     let crate_lib_path = env!("CARGO_MANIFEST_DIR");
     let crate_lib_sym_path = scan_path_utils::path_sym_cast(&crate_lib_path, &sym);
     let lib_path = for_substring!(crate_lib_sym_path,0,crate_lib_sym_path.rfind(&sym).unwrap_or(crate_lib_sym_path.len())).to_string();
+    println!("check_lib_path:{}",lib_path);
     return lib_path;
 }
