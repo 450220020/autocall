@@ -1,3 +1,10 @@
+#[macro_use]
+extern crate singlemap;
+#[macro_use]
+extern crate log;
+extern crate log4rs;
+extern crate serde_json;
+use log4rs;
 
 pub fn loading() {
     let config_path = single_get_ref!("log4rs_config_path");
