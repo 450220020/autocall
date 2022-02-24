@@ -13,6 +13,13 @@
  #[autowired]
  static defsingle: Option<EntityObj> = None;
 
+// autocall::libs  是 autocall 上传的自动装配包
+//扫描自动配置,快速集成组件   比如 src/starter_libs/mod.rs 默认自动调用  crate::starter_libs::actix-web-starter::loading();
+#[starter_scan(scan_path="autocall::libs",lib_name="log4rs-starter,rbatis-starter,actix-web-starter")]
+pub fn scan_auto_loading(){
+    //用来承载扫描内容的载体
+}
+
 
 //扫描 atesta::ioca路径下 scan_macro="bean" 使用bean宏标记的函数，扫描的内容会根据 调用宏component_scan的crate位置作为基础坐标，不用担心发布的crate扫描路径不正确的情况
 #[component_scan(scan_path="atesta::ioca",scan_macro="bean")]

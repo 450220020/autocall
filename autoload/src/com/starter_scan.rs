@@ -1,4 +1,5 @@
 use crate::com::component_celler_read;
+use crate::com::scan_path_utils;
 use crate::com::toml_read;
 use core::panic;
 use pest::Parser;
@@ -6,18 +7,10 @@ pub use proc_macro::TokenStream;
 use quote::quote;
 use std::{collections::HashMap, env, fs, path::Path, str::FromStr};
 
-#[derive(Parser)]
-#[grammar = "./pestf/component_scan_input.pest"]
-pub struct ComponentScanParser;
 
-#[derive(Debug, Clone)]
-struct ComponentScanVO {
-    scan_path: Option<String>,
-    scan_suffix: Option<String>,
-    scan_macro: Option<String>,
-    exculde_path: Option<String>,
-    lib_path: Option<String>,
-}
+#[derive(Parser)]
+#[grammar = "./pestf/starter_scan_input.pest"]
+pub struct StarterScanParser;
 
 const SYMBOL_STR: &str = "/";
 
@@ -25,337 +18,151 @@ fn get_path_symbol() -> String {
     String::from(SYMBOL_STR)
 }
 
-pub fn impl_component_scan(
+pub fn impl_starter_scan(
     _attr: &TokenStream,
     _input: &TokenStream,
-    celler_path: &str,
+    celler_path: &String,
 ) -> TokenStream {
-    println!("_input:{:?}", _input.to_string());
+    println!("impl_starter_scan _input:{:?}", _input.to_string());
     let attr_str = _attr.to_string();
-    let mut config = ComponentScanVO {
-        scan_path: None,
-        scan_suffix: Some(String::from(".rs")),
-        scan_macro: None,
-        exculde_path: Some(String::from("")),
-        lib_path: None,
-    };
+    let sym = get_path_symbol();
+    let sym_src_lib_str = sym.clone() + "src/lib.rs";
+    let mut scan_path = String::new();
+    let mut lib_name = String::new();
+    let mut scan_suffix = String::from(".rs");
     let param = attr_split_to_map(&attr_str);
 
     if let Some(r) = param.get("scan_path") {
-        config.scan_path = Some(r.clone().trim().to_string());
+        scan_path = r.clone().trim().to_string();
     }
-    if let Some(r) = param.get("scan_macro") {
-        config.scan_macro = Some(r.clone().trim().to_string());
+    if let Some(r) = param.get("lib_name") {
+        lib_name = r.clone().trim().to_string();
     }
-    if let Some(r) = param.get("scan_suffix") {
-        config.scan_suffix = Some(r.clone().trim().to_string());
-    }
-    if let Some(r) = param.get("exculde_path") {
-        config.exculde_path = Some(r.clone().trim().to_string());
-    }
-    if let Some(r) = param.get("lib_path") {
-        config.lib_path = Some(r.clone().trim().to_string());
-    }
-    config.lib_path = Some(celler_path.to_string());
+    let mut true_file_paht_vec = vec![];
+    if !lib_name.is_empty() {
+        // let run_load_code  = "
+        // single_get_ref_try!(\"autocall_loading_config_json\",String,|config_json_str:&String|{
+        //     let config_json = serde_json::from_str::<Value>(config_json_str).unwrap();
+        //     let load_component_list = &config_json[\"load_component_list\"];
+        //     match load_component_list {
+        //         Value::Array(r)=>{
+        //             if r.contains(&Value::String(String::from(\"log4rs\"))){
+        //                 auto_config::log4rs_config::loading();
+        //             }
+        //             if r.contains(&Value::String(String::from(\"rbatis\"))){
+        //                 auto_config::rbatis_config::loading();
+        //             }
+        //         }
+        //         _=>()
+        //     }
+        // },{
+        //     println!(\"autocall_loading_config_json not find\");
+        // });
+        // ";
 
-    if let None = param.get("scan_path") {
-        panic!("scan_path is none");
+        //需要扫描的文件路径
+        let file_path_vec = get_effective_file(&celler_path, &scan_path, &scan_suffix);
+        let crate_name_sp = lib_name.split(",");
+        for name_str in crate_name_sp {
+            let suffix_str = name_str.to_string() + &sym_src_lib_str;
+            for file_paht_str in &file_path_vec {
+                if let Some(_) = file_paht_str.strip_suffix(&suffix_str) {
+                    true_file_paht_vec.push((name_str.to_string(), file_paht_str.clone()));
+                }
+            }
+        }
     }
-
-    //需要扫描的文件路径
-    let file_path_vec = get_effective_file(config.clone());
-
-    //需要扫描的宏
-    let mut scan_macro_vec = Vec::<&str>::new();
-    let scan_macro = config.scan_macro.unwrap_or("".to_string()).clone();
-    if !scan_macro.trim().is_empty() {
-        let scan_macro_sp = scan_macro.split(",");
-        for scan_macro_str in scan_macro_sp {
-            scan_macro_vec.push(scan_macro_str);
+    let caller_file_path = scan_path_utils::get_caller_file_path();
+    //生成调用代码
+    let mut loading_code_str = String::new();
+    let crate_path_vec = path_lib_link(&caller_file_path, &celler_path, &celler_path);
+    let crate_path_str = &crate_path_vec[0];
+    println!("crate_path_straaaa:{:?}", crate_path_str);
+    let mut mod_code_str = String::new();
+    for (name_str, path_str) in true_file_paht_vec {
+        let crate_lib_name = name_str.replace("-", "_");
+        if let Ok(r) = fs::read_to_string(&path_str) {
+            let up_r = dorp_select_parset(r.clone());
+            mod_code_str += &format!("\n pub mod {}{{{}}}", &crate_lib_name, &up_r);
+            loading_code_str += &(crate_path_str.clone() + "::" + &crate_lib_name + "::loading();");
+        } else {
+            continue;
         }
     }
 
-    println!("file_path_vec:{:?}", file_path_vec);
-    let fun_vec = read_macro_file_path(&file_path_vec, &scan_macro_vec);
-    println!("fun_vec:{:?}", fun_vec);
-    let loading_code_str = fun_model_to_code(fun_vec, celler_path);
+    println!("mod_code_str:{}", mod_code_str);
 
-    let celler_fun_code_op = component_celler_read::read_this_parset(_input.clone().to_string());
+    println!("loading_code_str:{}", loading_code_str);
 
-    if let None = celler_fun_code_op {
-        panic!("not parset:{}", _input.clone().to_string());
-    }
-    let celler_fun = celler_fun_code_op.unwrap();
+    let celler_fun =
+        crate::com::starter_celler_read::read_this_parset(_input.clone().to_string()).unwrap();
     let mut fun_for_content = celler_fun.fun_for_content;
-    println!("fun_for_contentaaa:{:?}", fun_for_content);
-    println!("substring(fun_{:?}", fun_for_content.find("{").unwrap());
-    println!("fun_for_con{:?}", fun_for_content.rfind("}").unwrap() - 3);
-    println!("fun_for_con{:?}", fun_for_content.len());
-
     fun_for_content = for_substring!(
         &fun_for_content,
         fun_for_content.find("{").unwrap() + 1,
         fun_for_content.rfind("}").unwrap()
     )
     .to_string();
-
     let result_code = format!(
-        "pub fn {}({}){}{{{}{}}}",
+        "pub fn {}({}){}{{{}{}}}  {}",
         celler_fun.fun_name,
         celler_fun.fun_param,
         celler_fun.fun_head_end_group,
         fun_for_content,
-        loading_code_str
+        loading_code_str,
+        mod_code_str
     );
     println!("result_code:{}", result_code);
     let result_token_stream = proc_macro2::TokenStream::from_str(&result_code).unwrap();
     return TokenStream::from(result_token_stream);
 }
 
-///识别的函数集转换为执行代码
-pub fn fun_model_to_code(fun_vec: Vec<FunModel>, celler_path: &str) -> String {
-    for model in fun_vec {
-        let attr_map = param_attr_split_to_map(&model.fun_param);
-        println!("attr_map:{:?}-{:?}", attr_map, &model.fun_param);
-        let mut rely_vec = vec![];
-        let mut rely_name_type = vec![];
-        for rely_str in &model.fun_param.split(",").collect::<Vec<&str>>() {
-            if rely_str.is_empty() {
-                continue;
+
+
+
+
+pub fn dorp_select_parset(unparsed_file:String)->String {
+    let mut up_unparsed_file =unparsed_file.clone();
+    let rd_unparsed_file = unparsed_file.clone();
+    let file = StarterScanParser::parse(Rule::file, &rd_unparsed_file)
+        .expect("unsuccessful parse")
+        .next()
+        .unwrap();
+    for line in file.into_inner() {
+        match line.as_rule() {
+            Rule::extern_content => {
+                let  inner_rules = line.as_str();
+                println!("inner_rules:{}",inner_rules);
+                up_unparsed_file = up_unparsed_file.replace(inner_rules, "");
             }
-            match rely_str.split_once(":") {
-                Some((key, _)) => {
-                    rely_vec.push(key.to_string());
-                    rely_name_type.push(rely_str.to_string());
-                }
-                None => {
-                    continue;
-                }
+            Rule::extern_content=>{
+
             }
-        }
-        let crate_path_str = path_lib_link(&model.file_path, &celler_path, &celler_path);
-        //导入所有依赖
-        push_loader!(
-            model.fun_name.clone(),
-            (
-                false,
-                model.fun_name.clone(),
-                rely_vec,
-                crate_path_str[0].clone(),
-                rely_name_type,
-                model.fun_return
-            )
-        );
-    }
-    let sort_result = sort_loader!();
-    println!("sort_result:{:?}", sort_result);
-    let rely_sort;
-    match sort_result {
-        Ok(r) => {
-            rely_sort = r;
-        }
-        Err(r) => {
-            panic!("Error rely :{:?}", r);
+            Rule::EOI => (),
+            _ => (),
         }
     }
-    let mut insert_code_line = String::new();
-    //按照依赖顺序装载
-    for rely in rely_sort {
-        let fun_name = rely.1;
-        let fun_rely_vec = rely.4;
-        let fun_crate_path = rely.3;
-        let fun_return = rely.5;
-        let run_tokens;
-        if fun_rely_vec.len() > 0 {
-            println!("fun_rely_vec:{:?}", fun_rely_vec);
-            let mut rely_str = String::new();
-            for rely_name_type in fun_rely_vec {
-                let (key, val) = rely_name_type.split_once(":").unwrap();
-                let mut val_str = val.trim().clone();
-                if val_str.starts_with("&") {
-                    val_str = val_str.split_at(1).1;
-                }
-                rely_str = rely_str + "single_get_unwrap!(\"" + &key + "\"," + val_str + "),";
-            }
-            rely_str = for_substring!(rely_str, 0, rely_str.len() - 1).to_string();
-            if fun_return.is_empty() {
-                run_tokens = format!("{}::{}({});", fun_crate_path, fun_name, rely_str);
-            } else {
-                run_tokens = format!(
-                    "let {} = {}::{}({});single_push!({:?},{});",
-                    fun_name, fun_crate_path, fun_name, rely_str, fun_name, fun_name
-                );
-            }
-        } else {
-            //run_tokens = format!("let {} = {}::{}();single_push!({:?},{});",fun_name,fun_crate_path,fun_name,fun_name,fun_name);
-            //run_tokens = format!("let {} = {}::{}();",fun_name,fun_crate_path,fun_name);
-            if fun_return.is_empty() {
-                run_tokens = format!("{}::{}();", fun_crate_path, fun_name);
-            } else {
-                run_tokens = format!(
-                    "let {} = {}::{}();single_push!({:?},{});",
-                    fun_name, fun_crate_path, fun_name, fun_name, fun_name
-                );
-            }
-        }
-        insert_code_line = format!("{}{}", insert_code_line, run_tokens);
-        let rely_tokens = proc_macro2::TokenStream::from_str(&run_tokens).unwrap();
-        println!("rely_tokens:{:#?}", rely_tokens.to_string());
-    }
-    println!("insert_code_line:{:#?}", insert_code_line);
-    return insert_code_line;
+    up_unparsed_file = up_unparsed_file.replace("#[macro_use]","");
+    return up_unparsed_file;
 }
-
-// pub  fn get_work_path()->String{
-//     let sym = get_path_symbol();
-//     let mut config_path = String::new();
-//     let config_path_rs = env::current_dir();
-//     match config_path_rs {
-//         Ok(r) => {
-//             if let Some(s) = r.to_str() {
-//                 config_path = path_sym_cast(s, &sym);
-//             }
-//         }
-//         Err(e) => {
-//             panic!("error:{:?}", e);
-//         }
-//     }
-//     return config_path;
-// }
-
-// ///
-// /// 获取调用宏的项目路径
-// pub fn get_caller_path()->String{
-//     let sym = get_path_symbol();
-//     let call_site_span = proc_macro::Span::call_site();
-//     let ast_path ;
-//     let sym_src = sym.clone()+"src";
-
-//     let call_path = path_sym_cast(call_site_span
-//         .source_file()
-//         .path()
-//         .to_str()
-//         .unwrap_or(""),&sym);
-//         println!("call_path:{:?}",call_path);
-//         println!("call_path:{:?}",call_path.contains("src"));
-//     if call_path.contains("src") {
-//         let work_path = get_work_path();
-//         if let None = work_path.rfind(&sym){
-//             return String::new();
-//         }
-//         if let None = call_path.find(&sym_src){
-//             return String::new();
-//         }
-//         let work_dir_name = work_path.split_at(work_path.rfind(&sym).unwrap()).1;
-//         let call_dir_name = call_path.split_at(call_path.find(&sym_src).unwrap()).0;
-//         if !work_dir_name.eq(call_dir_name){
-//             ast_path = work_path+&sym + call_dir_name;
-//         }else{
-//             ast_path = get_work_path();
-//         }
-//     }else{
-
-//         let call_ast_path = path_sym_cast(&call_path, &sym);
-//         ast_path =  for_substring!(call_ast_path,0,call_ast_path.rfind(&sym_src).unwrap_or(call_ast_path.len())).to_string();
-//     }
-//     return ast_path;
-// }
-
-#[derive(Debug, Clone)]
-pub struct FunModel {
-    macro_name: String,
-    fun_name: String,
-    fun_param: String,
-    file_path: String,
-    fun_return: String,
-}
-
-// #[derive(Debug,Clone)]
-// pub struct FunContent{
-//     pub fun_name:String,
-//     pub fun_param:String,
-//     pub fun_head_end_group:String,
-//     pub fun_for_content:String,
-// }
-
-//读取文件并识别Fun
-#[allow(dead_code)]
-pub fn read_macro_file_path(
-    file_path_vec: &Vec<String>,
-    scan_macro_vec: &Vec<&str>,
-) -> Vec<FunModel> {
-    println!("扫面文件:{:?}", file_path_vec);
-    println!("扫描注解:{:?}", scan_macro_vec);
-    let mut fun_model_vec = vec![];
-    for file_path_str in file_path_vec {
-        let mut unparsed_file = String::new();
-        if let Ok(r) = fs::read_to_string(&file_path_str) {
-            unparsed_file = r.clone();
-        } else {
-            continue;
-        }
-        let file = ComponentScanParser::parse(Rule::file, unparsed_file.as_str())
-            .expect("unsuccessful parse")
-            .next()
-            .unwrap();
-        for line in file.into_inner() {
-            match line.as_rule() {
-                Rule::scan_macro_fun_content => {
-                    println!("识别的内容");
-                    let mut inner_rules = line.into_inner();
-                    let macro_char_group = inner_rules.next().unwrap().as_str().to_string();
-                    println!("macro_char_group:{:?}", macro_char_group);
-                    let macro_name_sp = macro_char_group.split("(");
-                    let mut macro_name = String::new();
-                    for macro_name_str in macro_name_sp {
-                        macro_name = macro_name_str.trim().to_string();
-                        break;
-                    }
-                    let fun_name_group = inner_rules.next().unwrap().as_str().to_string();
-                    println!("fun_name_group:{:?}", fun_name_group);
-
-                    let fun_brackets_group = inner_rules.next().unwrap().as_str().to_string();
-                    println!("fun_brackets_group:{:?}", fun_brackets_group);
-
-                    let fun_return_group = inner_rules.next().unwrap().as_str().to_string();
-
-                    if scan_macro_vec.contains(&macro_name.as_str()) {
-                        let fun_model = FunModel {
-                            macro_name: macro_name,
-                            fun_name: fun_name_group,
-                            fun_param: fun_brackets_group,
-                            file_path: file_path_str.clone(),
-                            fun_return: fun_return_group,
-                        };
-                        fun_model_vec.push(fun_model.clone());
-                        println!("fun_model:{:?}", fun_model);
-                    }
-                }
-                Rule::EOI => (),
-                _ => (),
-            }
-        }
-    }
-    return fun_model_vec;
-}
-
-///按文件地址识别
 
 ///
 /// 获取有效的扫描文件
-fn get_effective_file(config_vo: ComponentScanVO) -> Vec<String> {
-    let config = config_vo;
+fn get_effective_file(
+    celler_path: &String,
+    scan_path: &String,
+    scan_suffix: &String,
+) -> Vec<String> {
     //最终需要扫描的所有目录
-    println!("config:{:?}", config);
-    let path_list = config.scan_path.unwrap();
-    let lib_path = config.lib_path.unwrap();
-    let exculde_path = config.exculde_path.unwrap();
+    let path_list = scan_path.clone();
+    let lib_path = celler_path.clone();
+    let exculde_path = String::from("");
     let all_dir_path_ls = get_effective_dir(&path_list, &exculde_path, &lib_path);
 
     println!("all_dir_path_ls:{:?}", all_dir_path_ls);
     //需要扫描的文件后缀
     let mut scan_suffix_vec = Vec::<&str>::new();
-    let scan_suffix = config.scan_suffix.unwrap_or("".to_string()).clone();
+
     if !scan_suffix.trim().is_empty() {
         let scan_suffix_sp = scan_suffix.split(",");
         for scan_suffix_str in scan_suffix_sp {
@@ -385,6 +192,7 @@ fn get_effective_dir(path_list: &str, exclut_path: &str, lib_path: &str) -> Vec<
             act_exclude_path_concat_str = act_exclude_path_concat_str + "," + &act_exclude_path_str;
         }
     }
+
     for path_act_str in act_path_vec {
         let mut defaul_target_str = path_act_str.clone() + "\\target";
         if !act_exclude_path_concat_str.is_empty() {
@@ -413,24 +221,6 @@ pub fn attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
     let mut attr_map = HashMap::<String, String>::new();
     for attr_mate in attr_split {
         let attr_sp = attr_mate.split_once("=");
-        if let Some((key, val)) = attr_sp {
-            attr_map.insert(key.trim().to_string(), val.trim().to_string());
-        }
-    }
-    return attr_map;
-}
-
-pub fn param_attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
-    attr_str
-        .replace("/", "")
-        .replace('\n', "")
-        .replace('\\', "")
-        .trim()
-        .to_string();
-    let attr_split = attr_str.split(",");
-    let mut attr_map = HashMap::<String, String>::new();
-    for attr_mate in attr_split {
-        let attr_sp = attr_mate.split_once(":");
         if let Some((key, val)) = attr_sp {
             attr_map.insert(key.trim().to_string(), val.trim().to_string());
         }
@@ -485,7 +275,6 @@ pub fn read_path_all_dir(
     if current_level > max_level + 1 {
         return;
     }
-    println!("通过目录:{:?}", path_str);
     let path_rs = Path::new(&path_str);
     if path_rs.exists() && path_rs.is_dir() {
         all_path_ls.push(path_str.to_string());
@@ -534,7 +323,6 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
     .to_string();
     println!("current_lib_name:{:?}", current_lib_name);
     let current_lib_path = "../".to_string() + &current_lib_name;
-    //将工作目录加入扫描包中
     toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(), true));
     println!("toml_ver_map:{:?}", toml_ver_map);
     let check_lib_path = path_list.replace("::", &sym).clone();
@@ -584,7 +372,10 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
         }
         println!("frist_mod_path:{:?}", frist_mod_path);
         if Path::new(&(frist_mod_path.clone() + &sym + "src")).exists() {
-            frist_mod_path += &(sym.clone() + "src");
+            let frist_src = frist_mod_path.clone() + &(sym.clone() + "src");
+            if Path::new(&(frist_src.clone() + &sym + &last_mod_path)).exists() {
+                frist_mod_path += &(sym.clone() + "src");
+            }
         }
         let result_path = frist_mod_path + &sym + &last_mod_path;
         println!("result_path:{:?}", result_path);
@@ -596,7 +387,6 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
 ///set_lib_path = 实际包地址 env!("CARGO_MANIFEST_DIR")
 /// set_lib_path = 调用宏实际包地址
 /// 将实际文件路径转换为包路径
-#[warn(unused_must_use)]
 pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -> Vec<String> {
     let sym = get_path_symbol();
     let lib_config_path = path_sym_cast(set_lib_path, &sym);

@@ -15,6 +15,8 @@ use proc_macro::TokenStream;
 mod com;
 use com::component_scan;
 
+use crate::com::scan_path_utils;
+
 
 
 
@@ -96,8 +98,8 @@ pub fn bean(_attr: TokenStream, _input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn component_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
-    let  ast_path = component_scan::get_caller_path();
-    let work_path = component_scan::get_work_path();
+    let  ast_path = scan_path_utils::get_caller_path();
+    let work_path = scan_path_utils::get_work_path();
     println!("ast_path:{:?}",ast_path);
     println!("work_path:{:?}",work_path);
     if ast_path.is_empty(){
@@ -110,5 +112,12 @@ pub fn component_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn aop(_attr: TokenStream, _input: TokenStream) -> TokenStream {
     return com::aop::impl_aop(&_attr,&_input);
+}
+
+#[proc_macro_attribute]
+pub fn starter_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
+    let  ast_path = scan_path_utils::get_caller_path();
+    println!("starter_scan ast_path:{:?}",ast_path);
+    return com::starter_scan::impl_starter_scan(&_attr,&_input,&ast_path);
 }
 
