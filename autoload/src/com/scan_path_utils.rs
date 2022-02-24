@@ -1,6 +1,6 @@
 use std::{env, path::Path};
 
-use crate::com::toml_read;
+use crate::com::{toml_read, path_utils};
 
 const SYMBOL_STR: &str = "/";
 
@@ -271,7 +271,7 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
                     ) + &sym
                         + &val.0.replace("../", "");
                 } else {
-                    frist_mod_path = get_jump_folder(&lib_config_path, &sym, 1)+ &sym
+                    frist_mod_path = path_utils::get_lib_crate_path()+ &sym
                         + &lib_name.replace("_", "-")
                         + "-"
                         + &val.0;

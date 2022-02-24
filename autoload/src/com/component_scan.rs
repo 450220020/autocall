@@ -1,4 +1,5 @@
 use crate::com::component_celler_read;
+use crate::com::scan_path_utils;
 use crate::com::toml_read;
 use core::panic;
 use pest::Parser;
@@ -375,12 +376,12 @@ fn get_effective_dir(path_list: &str, exclut_path: &str, lib_path: &str) -> Vec<
     let mut all_dir_path_ls = Vec::new();
     //引用包实际目录
     println!("path_list:{:?}", path_list);
-    let act_path_vec = lib_path_link(path_list, lib_path);
+    let act_path_vec = scan_path_utils::lib_path_link(path_list, lib_path);
     println!("act_path_vec:{:?}", act_path_vec);
     //排除包实际目录
     let mut act_exclude_path_concat_str = String::new();
     if !exclut_path.is_empty() {
-        let act_exclude_path_vec = lib_path_link(exclut_path, lib_path);
+        let act_exclude_path_vec = scan_path_utils::lib_path_link(exclut_path, lib_path);
         for act_exclude_path_str in act_exclude_path_vec {
             act_exclude_path_concat_str = act_exclude_path_concat_str + "," + &act_exclude_path_str;
         }
@@ -517,81 +518,81 @@ fn path_sym_cast(path_str: &str, sym: &str) -> String {
 
 ///set_lib_path = 实际包地址 env!("CARGO_MANIFEST_DIR")
 /// set_lib_path = 调用宏实际包地址
-pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
-    let sym = get_path_symbol();
-    let up_sym = "..".to_string() + &sym;
-    //调用包地址
-    let lib_config_path = path_sym_cast(set_lib_path, &sym);
-    //读取调用宏的包依赖
-    let toml_path = lib_config_path.clone() + &sym + "Cargo.toml";
-    let mut toml_ver_map = toml_read::read_path_toml_lib_ver(&toml_path);
-    //调用宏的包
-    let current_lib_name = for_substring!(
-        &lib_config_path,
-        lib_config_path.rfind(&sym).unwrap_or(0) + 1,
-        lib_config_path.len()
-    )
-    .to_string();
-    println!("current_lib_name:{:?}", current_lib_name);
-    let current_lib_path = "../".to_string() + &current_lib_name;
-    //将工作目录加入扫描包中
-    toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(), true));
-    println!("toml_ver_map:{:?}", toml_ver_map);
-    let check_lib_path = path_list.replace("::", &sym).clone();
-    let lib_path_split = check_lib_path.split(",");
-    let mut path_parent_list: Vec<String> = vec![];
-    for path_str in lib_path_split {
-        if path_str.is_empty() {
-            continue;
-        }
-        println!("path_str:{:?}", path_str);
-        let mut frist_mod_path;
-        let the_path_str = path_str.replace("::", &sym).replace(&up_sym, "");
-        let last_mod_path = for_substring!(
-            the_path_str,
-            the_path_str.find(&sym).unwrap_or(the_path_str.len() - 1) + 1,
-            the_path_str.len()
-        )
-        .to_string();
-        println!("last_mod_path:{:?}", last_mod_path);
-        println!("the_path_str:{:?}", the_path_str);
-        let lib_name = the_path_str.clone().split(&sym).collect::<Vec<&str>>()[0].to_string();
-        println!("lib_name:{:?}", lib_name);
-        //是否引用依赖
-        let lib_attr_opt = toml_ver_map.get(&lib_name);
-        //实际地址
-        match lib_attr_opt {
-            Some(val) => {
-                println!("val:{:?}", val);
-                if val.1 {
-                    println!("lib_config_path:{:?}", lib_config_path);
-                    frist_mod_path = get_jump_folder(
-                        &lib_config_path,
-                        &sym,
-                        &val.0.split("../").collect::<Vec<&str>>().len() - 1,
-                    ) + &sym
-                        + &val.0.replace("../", "");
-                } else {
-                    frist_mod_path = get_jump_folder(&lib_config_path, &sym, 1)
-                        + &lib_name.replace("_", "-")
-                        + "-"
-                        + &val.0;
-                }
-            }
-            None => {
-                continue;
-            }
-        }
-        println!("frist_mod_path:{:?}", frist_mod_path);
-        if Path::new(&(frist_mod_path.clone() + &sym + "src")).exists() {
-            frist_mod_path += &(sym.clone() + "src");
-        }
-        let result_path = frist_mod_path + &sym + &last_mod_path;
-        println!("result_path:{:?}", result_path);
-        path_parent_list.push(result_path);
-    }
-    return path_parent_list;
-}
+// pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
+//     let sym = get_path_symbol();
+//     let up_sym = "..".to_string() + &sym;
+//     //调用包地址
+//     let lib_config_path = path_sym_cast(set_lib_path, &sym);
+//     //读取调用宏的包依赖
+//     let toml_path = lib_config_path.clone() + &sym + "Cargo.toml";
+//     let mut toml_ver_map = toml_read::read_path_toml_lib_ver(&toml_path);
+//     //调用宏的包
+//     let current_lib_name = for_substring!(
+//         &lib_config_path,
+//         lib_config_path.rfind(&sym).unwrap_or(0) + 1,
+//         lib_config_path.len()
+//     )
+//     .to_string();
+//     println!("current_lib_name:{:?}", current_lib_name);
+//     let current_lib_path = "../".to_string() + &current_lib_name;
+//     //将工作目录加入扫描包中
+//     toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(), true));
+//     println!("toml_ver_map:{:?}", toml_ver_map);
+//     let check_lib_path = path_list.replace("::", &sym).clone();
+//     let lib_path_split = check_lib_path.split(",");
+//     let mut path_parent_list: Vec<String> = vec![];
+//     for path_str in lib_path_split {
+//         if path_str.is_empty() {
+//             continue;
+//         }
+//         println!("path_str:{:?}", path_str);
+//         let mut frist_mod_path;
+//         let the_path_str = path_str.replace("::", &sym).replace(&up_sym, "");
+//         let last_mod_path = for_substring!(
+//             the_path_str,
+//             the_path_str.find(&sym).unwrap_or(the_path_str.len() - 1) + 1,
+//             the_path_str.len()
+//         )
+//         .to_string();
+//         println!("last_mod_path:{:?}", last_mod_path);
+//         println!("the_path_str:{:?}", the_path_str);
+//         let lib_name = the_path_str.clone().split(&sym).collect::<Vec<&str>>()[0].to_string();
+//         println!("lib_name:{:?}", lib_name);
+//         //是否引用依赖
+//         let lib_attr_opt = toml_ver_map.get(&lib_name);
+//         //实际地址
+//         match lib_attr_opt {
+//             Some(val) => {
+//                 println!("val:{:?}", val);
+//                 if val.1 {
+//                     println!("lib_config_path:{:?}", lib_config_path);
+//                     frist_mod_path = get_jump_folder(
+//                         &lib_config_path,
+//                         &sym,
+//                         &val.0.split("../").collect::<Vec<&str>>().len() - 1,
+//                     ) + &sym
+//                         + &val.0.replace("../", "");
+//                 } else {
+//                     frist_mod_path = get_jump_folder(&lib_config_path, &sym, 1)
+//                         + &lib_name.replace("_", "-")
+//                         + "-"
+//                         + &val.0;
+//                 }
+//             }
+//             None => {
+//                 continue;
+//             }
+//         }
+//         println!("frist_mod_path:{:?}", frist_mod_path);
+//         if Path::new(&(frist_mod_path.clone() + &sym + "src")).exists() {
+//             frist_mod_path += &(sym.clone() + "src");
+//         }
+//         let result_path = frist_mod_path + &sym + &last_mod_path;
+//         println!("result_path:{:?}", result_path);
+//         path_parent_list.push(result_path);
+//     }
+//     return path_parent_list;
+// }
 
 ///set_lib_path = 实际包地址 env!("CARGO_MANIFEST_DIR")
 /// set_lib_path = 调用宏实际包地址
