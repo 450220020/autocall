@@ -15,7 +15,7 @@ use proc_macro::TokenStream;
 mod com;
 use com::component_scan;
 
-use crate::com::scan_path_utils;
+use crate::com::{scan_path_utils, path_utils};
 
 
 
@@ -118,6 +118,7 @@ pub fn aop(_attr: TokenStream, _input: TokenStream) -> TokenStream {
 pub fn starter_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
     let  ast_path = scan_path_utils::get_caller_path();
     println!("starter_scan ast_path:{:?}",ast_path);
+    path_utils::get_auto_starter_path();
     return com::starter_scan::impl_starter_scan(&_attr,&_input,&ast_path);
 }
 
