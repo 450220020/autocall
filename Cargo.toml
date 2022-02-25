@@ -3,4 +3,5 @@ members = [
     "autocall",
     "autoload",
     "singlemap",
+    "autopath",
 ]

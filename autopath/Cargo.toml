@@ -1,0 +1,11 @@
+[package]
+name = "autopath"
+version = "0.1.0"
+edition = "2021"
+readme = "README.md"
+license-file = "LICENSE"
+description = "rust path get"
+documentation = "https://docs.rs/autopath"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
