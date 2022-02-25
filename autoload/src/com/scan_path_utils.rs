@@ -1,10 +1,8 @@
-use std::{ path::Path, collections::HashMap};
+use std::{collections::HashMap, path::Path};
 
-use crate::com::{toml_read, path_utils};
+use crate::com::{path_utils, toml_read};
 
-use super::path_utils::{path_sym_cast, get_path_symbol};
-
-
+use super::path_utils::{get_path_symbol, path_sym_cast};
 
 /// 读取文件夹指定后缀文件
 pub fn read_dir_file(path_vec: Vec<String>, suffix_vec: Vec<&str>) -> Vec<String> {
@@ -77,14 +75,11 @@ pub fn read_path_all_dir(
     }
 }
 
-
 //获取有效的文件夹
 pub fn get_effective_dir(path_list: &str, exclut_path: &str, lib_path: &str) -> Vec<String> {
     let mut all_dir_path_ls = Vec::new();
     //引用包实际目录
-    println!("path_list:{:?}", path_list);
     let act_path_vec = lib_path_link(path_list, lib_path);
-    println!("act_path_vec:{:?}", act_path_vec);
     //排除包实际目录
     let mut act_exclude_path_concat_str = String::new();
     if !exclut_path.is_empty() {
@@ -110,8 +105,6 @@ pub fn get_effective_dir(path_list: &str, exclut_path: &str, lib_path: &str) -> 
     all_dir_path_ls
 }
 
-
-
 ///set_lib_path = 实际包地址 env!("CARGO_MANIFEST_DIR")
 /// set_lib_path = 调用宏实际包地址
 pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
@@ -129,10 +122,8 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
         lib_config_path.len()
     )
     .to_string();
-    println!("current_lib_name:{:?}", current_lib_name);
     let current_lib_path = "../".to_string() + &current_lib_name;
     toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(), true));
-    println!("toml_ver_map:{:?}", toml_ver_map);
     let check_lib_path = path_list.replace("::", &sym).clone();
     let lib_path_split = check_lib_path.split(",");
     let mut path_parent_list: Vec<String> = vec![];
@@ -140,7 +131,6 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
         if path_str.is_empty() {
             continue;
         }
-        println!("path_str:{:?}", path_str);
         let mut frist_mod_path;
         let the_path_str = path_str.replace("::", &sym).replace(&up_sym, "");
         let last_mod_path = for_substring!(
@@ -149,18 +139,13 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
             the_path_str.len()
         )
         .to_string();
-        println!("last_mod_path:{:?}", last_mod_path);
-        println!("the_path_str:{:?}", the_path_str);
         let lib_name = the_path_str.clone().split(&sym).collect::<Vec<&str>>()[0].to_string();
-        println!("lib_name:{:?}", lib_name);
         //是否引用依赖
         let lib_attr_opt = toml_ver_map.get(&lib_name);
         //实际地址
         match lib_attr_opt {
             Some(val) => {
-                println!("val:{:?}", val);
                 if val.1 {
-                    println!("lib_config_path:{:?}", lib_config_path);
                     frist_mod_path = get_jump_folder(
                         &lib_config_path,
                         &sym,
@@ -168,17 +153,15 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
                     ) + &sym
                         + &val.0.replace("../", "");
                 } else {
-                    frist_mod_path = path_utils::get_lib_crate_path()+ &sym
-                        + &lib_name.replace("_", "-")
-                        + "-"
-                        + &val.0;
+                    let lib_crate_path = path_utils::get_lib_crate_path();
+                    frist_mod_path =
+                        lib_crate_path + &sym + &lib_name.replace("_", "-") + "-" + &val.0;
                 }
             }
             None => {
                 continue;
             }
         }
-        println!("frist_mod_path:{:?}", frist_mod_path);
         if Path::new(&(frist_mod_path.clone() + &sym + "src")).exists() {
             let frist_src = frist_mod_path.clone() + &(sym.clone() + "src");
             if Path::new(&(frist_src.clone() + &sym + &last_mod_path)).exists() {
@@ -186,7 +169,6 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
             }
         }
         let result_path = frist_mod_path + &sym + &last_mod_path;
-        println!("result_path:{:?}", result_path);
         path_parent_list.push(result_path);
     }
     return path_parent_list;
@@ -198,9 +180,7 @@ pub fn lib_path_link(path_list: &str, set_lib_path: &str) -> Vec<String> {
 pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -> Vec<String> {
     let sym = get_path_symbol();
     let lib_config_path = path_sym_cast(set_lib_path, &sym);
-    //C:\\Users\\45022\\.cargo\\registry\\src\\github.com-1ecc6299db9ec823\\extends-rs-0.1.6
     //读取工作目录依赖文件信息 找到对应版本依赖文件扫描读取
-
     let toml_path = lib_config_path.clone() + &sym + "Cargo.toml";
     let mut toml_ver_map = toml_read::read_path_toml_lib_ver(&toml_path);
     let current_lib_name = for_substring!(
@@ -211,7 +191,6 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -
     .to_string();
     let current_lib_path = "../".to_string() + &current_lib_name;
     toml_ver_map.insert(current_lib_name.clone(), (current_lib_path.clone(), true));
-    println!("toml_ver_map:{:?}", toml_ver_map);
     //let check_lib_path = path_list.replace(&sym, "::").clone();
     let lib_path_split = path_list.clone().split(",");
     let mut path_parent_list: Vec<String> = vec![];
@@ -219,7 +198,6 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -
         if path_str.is_empty() {
             continue;
         }
-        println!("path_str:{:?}", path_str);
         let mut the_path_str = String::new();
         //如果有后缀 去掉
         if let Some(r) = path_str.rfind(".") {
@@ -236,16 +214,13 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -
             .split(&sym)
             .map(|f| f.to_string())
             .collect::<Vec<String>>();
-        println!("jump_dir_vec:{:?}", jump_dir_vec);
         let mut crate_path_str = String::new();
         let mut jump_record_str = the_path_str.clone();
         let max_idx = jump_dir_vec.len() - 1;
         for x in 0..max_idx {
             let jump = jump_dir_vec[max_idx - x].clone();
             crate_path_str = jump.clone() + "::" + &crate_path_str;
-            println!("crate_path_str+=:{:?}", crate_path_str);
             jump_record_str = get_jump_folder(&jump_record_str, &sym, 1);
-            println!("jump_record_str+=:{:?}", jump_record_str);
             if Path::new(&(jump_record_str.clone() + &sym + "Cargo.toml")).exists() {
                 let crate_dir_name;
                 match jump_record_str.rfind(&sym) {
@@ -264,8 +239,6 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -
         }
         crate_path_str = for_substring!(crate_path_str, 0, crate_path_str.rfind("::").unwrap())
             .replace("src::", "");
-
-        println!("crate_path_str:{:?}", &crate_path_str);
 
         let crate_name =
             for_substring!(crate_path_str, 0, crate_path_str.find("::").unwrap()).to_string();
@@ -294,8 +267,6 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -
             work_lib_path.len()
         )
         .replace(&sym, "");
-        println!("work_dir_name:{:?}", work_dir_name);
-        println!("crate_name:{:?}", crate_name);
         //包与工作目录一致修改为crate
         if work_dir_name.eq(&crate_name) {
             crate_path_str = crate_path_str.replace(&crate_name, "crate");
@@ -311,7 +282,6 @@ pub fn path_lib_link(path_list: &str, set_lib_path: &str, work_lib_path: &str) -
             )
             .to_string();
         }
-        println!("crate_path_str rest:{:?}", crate_path_str);
         path_parent_list.push(crate_path_str);
     }
     return path_parent_list;
@@ -342,7 +312,6 @@ pub fn get_jump_folder(path_str_the: &str, lev_str: &str, set_lev_size: usize) -
     }
     path_str_result
 }
-
 
 //分解宏属性为map
 pub fn attr_split_to_map(attr_str: &str) -> HashMap<String, String> {

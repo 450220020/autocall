@@ -1,23 +1,19 @@
-
 use crate::com::path_utils::{get_caller_file_path, get_path_symbol};
-use crate::com::scan_path_utils::{self, attr_split_to_map};
 use crate::com::scan_path_utils::path_lib_link;
+use crate::com::scan_path_utils::{self, attr_split_to_map};
 use pest::Parser;
 pub use proc_macro::TokenStream;
 use std::{fs, str::FromStr};
 
-
 #[derive(Parser)]
 #[grammar = "./pestf/starter_scan_input.pest"]
 pub struct StarterScanParser;
-
 
 pub fn impl_starter_scan(
     _attr: &TokenStream,
     _input: &TokenStream,
     celler_path: &String,
 ) -> TokenStream {
-    println!("impl_starter_scan _input:{:?}", _input.to_string());
     let attr_str = _attr.to_string();
     let sym = get_path_symbol();
     let sym_src_lib_str = sym.clone() + "src/lib.rs";
@@ -47,14 +43,11 @@ pub fn impl_starter_scan(
         }
     }
     let caller_file_path = get_caller_file_path();
-
     //生成调用代码
     let mut loading_code_str = String::new();
     let crate_path_vec = path_lib_link(&caller_file_path, &celler_path, &celler_path);
     let crate_path_str = &crate_path_vec[0];
-    println!("crate_path_straaaa:{:?}", crate_path_str);
     let mut mod_code_str = String::new();
-    println!("lodingfile:{:?}",true_file_paht_vec);
     for (name_str, path_str) in true_file_paht_vec {
         let crate_lib_name = name_str.replace("-", "_");
         if let Ok(r) = fs::read_to_string(&path_str) {
@@ -65,7 +58,6 @@ pub fn impl_starter_scan(
             continue;
         }
     }
-
 
     let celler_fun =
         crate::com::starter_celler_read::read_this_parset(_input.clone().to_string()).unwrap();
@@ -85,17 +77,13 @@ pub fn impl_starter_scan(
         loading_code_str,
         mod_code_str
     );
-    println!("result_code:{}", result_code);
+    println!("starter_scan_code:\n{}", result_code);
     let result_token_stream = proc_macro2::TokenStream::from_str(&result_code).unwrap();
     return TokenStream::from(result_token_stream);
 }
 
-
-
-
-
-pub fn dorp_select_parset(unparsed_file:String)->String {
-    let mut up_unparsed_file =unparsed_file.clone();
+pub fn dorp_select_parset(unparsed_file: String) -> String {
+    let mut up_unparsed_file = unparsed_file.clone();
     let rd_unparsed_file = unparsed_file.clone();
     let file = StarterScanParser::parse(Rule::file, &rd_unparsed_file)
         .expect("unsuccessful parse")
@@ -104,14 +92,14 @@ pub fn dorp_select_parset(unparsed_file:String)->String {
     for line in file.into_inner() {
         match line.as_rule() {
             Rule::extern_content => {
-                let  inner_rules = line.as_str();
+                let inner_rules = line.as_str();
                 up_unparsed_file = up_unparsed_file.replace(inner_rules, "");
             }
             Rule::EOI => (),
             _ => (),
         }
     }
-    up_unparsed_file = up_unparsed_file.replace("#[macro_use]","");
+    up_unparsed_file = up_unparsed_file.replace("#[macro_use]", "");
     return up_unparsed_file;
 }
 
@@ -127,8 +115,6 @@ fn get_effective_file(
     let lib_path = celler_path.clone();
     let exculde_path = String::from("");
     let all_dir_path_ls = scan_path_utils::get_effective_dir(&path_list, &exculde_path, &lib_path);
-
-    println!("all_dir_path_ls:{:?}", all_dir_path_ls);
     //需要扫描的文件后缀
     let mut scan_suffix_vec = Vec::<&str>::new();
 
@@ -145,24 +131,3 @@ fn get_effective_file(
     let file_path_vec = scan_path_utils::read_dir_file(all_dir_path_ls, scan_suffix_vec);
     return file_path_vec;
 }
-
-
-
-// //分解宏属性为map
-// pub fn attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
-//     attr_str
-//         .replace("/", "")
-//         .replace('\n', "")
-//         .replace('\\', "")
-//         .trim()
-//         .to_string();
-//     let attr_split = attr_str.split("\",").map(|s| s.replace("\"", ""));
-//     let mut attr_map = HashMap::<String, String>::new();
-//     for attr_mate in attr_split {
-//         let attr_sp = attr_mate.split_once("=");
-//         if let Some((key, val)) = attr_sp {
-//             attr_map.insert(key.trim().to_string(), val.trim().to_string());
-//         }
-//     }
-//     return attr_map;
-// }
