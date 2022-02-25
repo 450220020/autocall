@@ -1,111 +1,8 @@
-use std::{env, path::Path};
+use std::{ path::Path, collections::HashMap};
 
 use crate::com::{toml_read, path_utils};
 
-const SYMBOL_STR: &str = "/";
-
-pub fn get_path_symbol() -> String {
-    String::from(SYMBOL_STR)
-}
-
-pub fn path_sym_cast(path_str: &str, sym: &str) -> String {
-    path_str.replace("\\", sym).replace("/", sym)
-}
-
-
-
-pub  fn get_work_path()->String{
-    let sym = get_path_symbol();
-    let mut config_path = String::new();
-    let config_path_rs = env::current_dir();
-    match config_path_rs {
-        Ok(r) => {
-            if let Some(s) = r.to_str() {
-                config_path = path_sym_cast(s, &sym);
-            }
-        }
-        Err(e) => {
-            panic!("error:{:?}", e);
-        }
-    }
-    return config_path;
-}
-
-/// 
-/// 获取调用宏的项目路径
-pub fn get_caller_path()->String{
-    let sym = get_path_symbol();
-    let call_site_span = proc_macro::Span::call_site();
-    let ast_path ;
-    let sym_src = sym.clone()+"src";
-    let src_sym = "src".to_string()+&sym;
-    
-    let call_path = path_sym_cast(call_site_span
-        .source_file()
-        .path()
-        .to_str()
-        .unwrap_or(""),&sym);
-        println!("call_path:{:?}",call_path);
-        println!("call_path:{:?}",call_path.contains("src"));
-    if call_path.contains("src") {
-        let work_path = get_work_path();
-        if let None = work_path.rfind(&sym){
-            return String::new();
-        }
-        println!("test work_path:{}",work_path);
-        let work_dir_name = work_path.split_at(work_path.rfind(&sym).unwrap()).1.to_string();
-        let call_dir_name;
-        match call_path.find(&sym_src){
-            Some(r)=>{
-                call_dir_name = call_path.split_at(r).0.to_string();
-            }
-            None=>{
-                if call_path.starts_with(&src_sym){
-                    call_dir_name = work_dir_name.clone();
-                }else{
-                    return String::new();
-                }
-            }
-        }
-    
-        if !work_dir_name.eq(&call_dir_name){
-            ast_path = work_path+&sym + &call_dir_name;
-        }else{
-            ast_path = get_work_path();
-        }
-    }else{
-        
-        let call_ast_path = path_sym_cast(&call_path, &sym);
-        ast_path =  for_substring!(call_ast_path,0,call_ast_path.rfind(&sym_src).unwrap_or(call_ast_path.len())).to_string();
-    }
-    return ast_path;
-}
-
-pub fn get_caller_file_path()->String{
-    let sym = get_path_symbol();
-    let call_site_span = proc_macro::Span::call_site();
-    
-    let call_path = path_sym_cast(call_site_span
-        .source_file()
-        .path()
-        .to_str()
-        .unwrap_or(""),&sym);
-        println!("call_path:{:?}",call_path);
-    let work_path = get_work_path();
-    if call_path.starts_with("src/"){
-        return work_path.clone()+"/"+&call_path;
-    }
-    let first_str = for_substring!(call_path,0,call_path.find("/src").unwrap_or(0));
-    let last_str = for_substring!(call_path,call_path.find("/src").unwrap_or(0),call_path.len());
-    let crate_name = for_substring!(first_str,first_str.rfind(&sym).unwrap_or(0),first_str.len());
-    if let Some(_) = work_path.strip_suffix(crate_name){
-        return work_path.clone()+"/"+&call_path;
-    }
-    println!("first_str:{}",first_str);
-    println!("last_str:{}",last_str);
-    println!("crate_name:{}",crate_name);
-    return call_path;
-}
+use super::path_utils::{path_sym_cast, get_path_symbol};
 
 
 
@@ -444,4 +341,42 @@ pub fn get_jump_folder(path_str_the: &str, lev_str: &str, set_lev_size: usize) -
         }
     }
     path_str_result
+}
+
+
+//分解宏属性为map
+pub fn attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
+    attr_str
+        .replace("/", "")
+        .replace('\n', "")
+        .replace('\\', "")
+        .trim()
+        .to_string();
+    let attr_split = attr_str.split("\",").map(|s| s.replace("\"", ""));
+    let mut attr_map = HashMap::<String, String>::new();
+    for attr_mate in attr_split {
+        let attr_sp = attr_mate.split_once("=");
+        if let Some((key, val)) = attr_sp {
+            attr_map.insert(key.trim().to_string(), val.trim().to_string());
+        }
+    }
+    return attr_map;
+}
+
+pub fn param_attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
+    attr_str
+        .replace("/", "")
+        .replace('\n', "")
+        .replace('\\', "")
+        .trim()
+        .to_string();
+    let attr_split = attr_str.split(",");
+    let mut attr_map = HashMap::<String, String>::new();
+    for attr_mate in attr_split {
+        let attr_sp = attr_mate.split_once(":");
+        if let Some((key, val)) = attr_sp {
+            attr_map.insert(key.trim().to_string(), val.trim().to_string());
+        }
+    }
+    return attr_map;
 }

@@ -1,21 +1,16 @@
 
-use crate::com::scan_path_utils;
-use crate::com::toml_read;
-use core::panic;
+use crate::com::path_utils::{get_caller_file_path, get_path_symbol};
+use crate::com::scan_path_utils::{self, attr_split_to_map};
+use crate::com::scan_path_utils::path_lib_link;
 use pest::Parser;
 pub use proc_macro::TokenStream;
-use std::{collections::HashMap, fs, path::Path, str::FromStr};
+use std::{fs, str::FromStr};
 
 
 #[derive(Parser)]
 #[grammar = "./pestf/starter_scan_input.pest"]
 pub struct StarterScanParser;
 
-const SYMBOL_STR: &str = "/";
-
-fn get_path_symbol() -> String {
-    String::from(SYMBOL_STR)
-}
 
 pub fn impl_starter_scan(
     _attr: &TokenStream,
@@ -25,10 +20,10 @@ pub fn impl_starter_scan(
     println!("impl_starter_scan _input:{:?}", _input.to_string());
     let attr_str = _attr.to_string();
     let sym = get_path_symbol();
-    let sym_src_lib_str = sym.clone() + "src/lib.rst";
+    let sym_src_lib_str = sym.clone() + "src/lib.rs";
     let mut scan_path = String::new();
     let mut lib_name = String::new();
-    let mut scan_suffix = String::from(".rst");
+    let scan_suffix = String::from(".rs");
     let param = attr_split_to_map(&attr_str);
 
     if let Some(r) = param.get("scan_path") {
@@ -51,11 +46,11 @@ pub fn impl_starter_scan(
             }
         }
     }
-    let caller_file_path = scan_path_utils::get_caller_file_path();
+    let caller_file_path = get_caller_file_path();
 
     //生成调用代码
     let mut loading_code_str = String::new();
-    let crate_path_vec = scan_path_utils::path_lib_link(&caller_file_path, &celler_path, &celler_path);
+    let crate_path_vec = path_lib_link(&caller_file_path, &celler_path, &celler_path);
     let crate_path_str = &crate_path_vec[0];
     println!("crate_path_straaaa:{:?}", crate_path_str);
     let mut mod_code_str = String::new();
@@ -153,28 +148,21 @@ fn get_effective_file(
 
 
 
-//分解宏属性为map
-pub fn attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
-    attr_str
-        .replace("/", "")
-        .replace('\n', "")
-        .replace('\\', "")
-        .trim()
-        .to_string();
-    let attr_split = attr_str.split("\",").map(|s| s.replace("\"", ""));
-    let mut attr_map = HashMap::<String, String>::new();
-    for attr_mate in attr_split {
-        let attr_sp = attr_mate.split_once("=");
-        if let Some((key, val)) = attr_sp {
-            attr_map.insert(key.trim().to_string(), val.trim().to_string());
-        }
-    }
-    return attr_map;
-}
-
-///
-
-
-fn path_sym_cast(path_str: &str, sym: &str) -> String {
-    path_str.replace("\\", sym).replace("/", sym)
-}
+// //分解宏属性为map
+// pub fn attr_split_to_map(attr_str: &str) -> HashMap<String, String> {
+//     attr_str
+//         .replace("/", "")
+//         .replace('\n', "")
+//         .replace('\\', "")
+//         .trim()
+//         .to_string();
+//     let attr_split = attr_str.split("\",").map(|s| s.replace("\"", ""));
+//     let mut attr_map = HashMap::<String, String>::new();
+//     for attr_mate in attr_split {
+//         let attr_sp = attr_mate.split_once("=");
+//         if let Some((key, val)) = attr_sp {
+//             attr_map.insert(key.trim().to_string(), val.trim().to_string());
+//         }
+//     }
+//     return attr_map;
+// }

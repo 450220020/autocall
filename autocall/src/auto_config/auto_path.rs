@@ -1,4 +1,4 @@
-use std::{env};
+use std::{env, path::Path};
 
 const SYMBOL_STR: &str = "/";
 
@@ -26,4 +26,9 @@ pub  fn get_work_path()->String{
         }
     }
     return config_path;
+}
+
+pub fn get_auto_starter_path(){
+    let path = Path::new("../libs");
+    println!("asb_path:{:?}", path.canonicalize().unwrap())
 }

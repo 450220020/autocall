@@ -98,8 +98,8 @@ pub fn bean(_attr: TokenStream, _input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn component_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
-    let  ast_path = scan_path_utils::get_caller_path();
-    let work_path = scan_path_utils::get_work_path();
+    let  ast_path = path_utils::get_caller_path();
+    let work_path = path_utils::get_work_path();
     println!("ast_path:{:?}",ast_path);
     println!("work_path:{:?}",work_path);
     if ast_path.is_empty(){
@@ -116,7 +116,7 @@ pub fn aop(_attr: TokenStream, _input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn starter_scan(_attr: TokenStream, _input: TokenStream) -> TokenStream {
-    let  ast_path = scan_path_utils::get_caller_path();
+    let  ast_path = path_utils::get_caller_path();
     println!("starter_scan ast_path:{:?}",ast_path);
     path_utils::get_auto_starter_path();
     return com::starter_scan::impl_starter_scan(&_attr,&_input,&ast_path);
