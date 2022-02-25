@@ -3,7 +3,7 @@ use std::{ str::FromStr};
 use pest::Parser;
 use proc_macro::TokenStream;
 
-use super::component_scan::attr_split_to_map;
+use super::scan_path_utils::attr_split_to_map;
 
 #[derive(Debug, Clone)]
 pub struct FunContent {

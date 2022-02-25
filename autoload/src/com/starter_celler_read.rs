@@ -22,15 +22,9 @@ pub fn read_this_parset(unparsed_file:String)->Option<FunContent> {
             Rule::scan_macro_fun_content => {
                 let mut inner_rules = line.into_inner();
                 let fun_name_group = inner_rules.next().unwrap().as_str().to_string();
-                println!("fun_name_group:{:?}", fun_name_group);
-
                 let fun_brackets_group = inner_rules.next().unwrap().as_str().to_string();
-                println!("fun_brackets_group:{:?}",fun_brackets_group);
-
                 let fun_head_end_group = inner_rules.next().unwrap().as_str().to_string();
-                println!("fun_head_end_group:{:?}",fun_head_end_group);
                 let fun_for_content = inner_rules.next().unwrap().as_str().to_string();
-                println!("fun_for_content:{:?}",fun_for_content);
                 return Some(FunContent{
                     fun_name:fun_name_group,
                     fun_param:fun_brackets_group,
