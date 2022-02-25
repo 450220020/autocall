@@ -4,4 +4,5 @@ members = [
     "autoload",
     "singlemap",
     "autopath",
+    "autocall/libs_test/lettre-email-starter",
 ]
