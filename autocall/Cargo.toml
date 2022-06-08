@@ -1,6 +1,6 @@
 [package]
 name = "autocall"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 readme = "README.md"
 license-file = "LICENSE"
@@ -10,7 +10,7 @@ repository = "https://github.com/450220020/autocall.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-singlemap="0.1.5"
+singlemap="0.1.6"
 log4rs="1"
 log="0.4.14"
 serde_json="1"

@@ -6,7 +6,7 @@ readme = "README.md"
 license-file = "LICENSE"
 description = "rust single map"
 documentation = "https://docs.rs/singlemap"
-
+repository = "https://github.com/450220020/autocall.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
