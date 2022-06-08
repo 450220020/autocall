@@ -1,7 +1,3 @@
-#![feature(core_intrinsics)]
-#![feature(proc_macro_span)]
-#![feature(proc_macro_def_site)]
-#[warn(unused_imports)]
 #[macro_use]
 extern crate singlemap;
 extern crate proc_macro;
