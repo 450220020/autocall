@@ -1,4 +1,3 @@
-#![feature(trait_alias)]
 extern crate dashmap;
 extern crate once_cell;
 pub mod com;
